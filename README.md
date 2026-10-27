@@ -90,14 +90,20 @@
 ## 3. 파이프라인
 
 ```mermaid
-flowchart LR
-    A[원본 데이터<br/>JSON 763개 · 이미지 232장] --> B[01 EDA<br/>구조 · 품질 · 분포 · 누수 위험]
-    B --> C[02 전처리<br/>라벨 감사 · 규칙 기반 수정]
-    C --> D[조합 단위<br/>Stratified Group 5-Fold]
-    D --> E[YOLO 데이터셋<br/>+ COCO 정제본]
-    E --> F[03 학습<br/>사전학습 YOLO 파인튜닝]
-    F --> G[04 추론<br/>TTA · 앙상블]
-    G --> H[Kaggle 제출]
+flowchart TB
+    subgraph S1 [" ① 데이터 준비 "]
+        direction LR
+        A[원본 데이터<br/>JSON 763개 · 이미지 232장] --> B[01 EDA<br/>구조 · 품질 · 분포 · 누수 위험]
+        B --> C[02 전처리<br/>라벨 감사 · 규칙 기반 수정]
+        C --> D[조합 단위<br/>Stratified Group 5-Fold]
+    end
+    subgraph S2 [" ② 모델링 · 제출 "]
+        direction LR
+        E[YOLO 데이터셋<br/>+ COCO 정제본] --> F[03 학습<br/>사전학습 YOLO 파인튜닝]
+        F --> G[04 추론<br/>TTA · 앙상블]
+        G --> H[Kaggle 제출]
+    end
+    S1 --> S2
 
     style C fill:#FFF4CC,stroke:#E0B000
     style D fill:#FFF4CC,stroke:#E0B000
