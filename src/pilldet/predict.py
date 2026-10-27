@@ -10,9 +10,14 @@ import pandas as pd
 
 
 def predict_images(weights: Path, image_paths: list[Path], class_map: pd.DataFrame, imgsz: int = 640,
-                   conf: float = 0.001, iou: float = 0.7, max_det: int = 300, augment: bool = False,
-                   batch: int = 16, device=None) -> pd.DataFrame:
-    """이미지 목록을 예측한다. conf를 낮게 두는 이유: mAP는 낮은 점수의 예측까지 순위로 평가하기 때문이다."""
+                   conf: float = 0.001, iou: float = 0.7, max_det: int = 100, augment: bool = False,
+                   batch: int = 16, device=None, agnostic_nms: bool = False) -> pd.DataFrame:
+    """이미지 목록을 예측한다. conf를 낮게 두는 이유: mAP는 낮은 점수의 예측까지 순위로 평가하기 때문이다.
+
+    max_det=100: COCO 평가는 이미지당 상위 100개까지만 본다 (maxDets=100). 그 이상은 제출 파일만 키운다.
+
+    agnostic_nms=True: 클래스와 상관없이 겹치는 박스를 하나로 합친다 (2단계 모델에서 "알약 위치"만 얻을 때).
+    """
     from ultralytics import YOLO
 
     model = YOLO(str(weights))
@@ -21,7 +26,8 @@ def predict_images(weights: Path, image_paths: list[Path], class_map: pd.DataFra
     for i in range(0, len(image_paths), batch):
         chunk = [str(p) for p in image_paths[i:i + batch]]
         for path, r in zip(chunk, model.predict(chunk, imgsz=imgsz, conf=conf, iou=iou, max_det=max_det,
-                                                 augment=augment, device=device, verbose=False)):
+                                                 augment=augment, device=device, agnostic_nms=agnostic_nms,
+                                                 verbose=False)):
             boxes = r.boxes
             for (x1, y1, x2, y2), c, s in zip(boxes.xyxy.tolist(), boxes.cls.tolist(), boxes.conf.tolist()):
                 if x2 - x1 < 1 or y2 - y1 < 1:  # 크기가 1px 미만인 퇴화 박스는 버린다

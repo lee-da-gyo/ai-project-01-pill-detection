@@ -5,6 +5,7 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -36,14 +37,32 @@ def to_submission(pred: pd.DataFrame, spec: dict) -> pd.DataFrame:
     return sub[[c[k] for k in spec["order"]]]
 
 
-def validate_submission(sub: pd.DataFrame, spec: dict, test_ids: set, valid_categories: set) -> dict:
-    """제출 전 형식 검사. 문제가 있으면 AssertionError."""
+def validate_submission(sub: pd.DataFrame, spec: dict, test_sizes: dict, valid_categories: set,
+                        max_per_image: int = 100, tol: float = 1.0) -> dict:
+    """제출 전 형식 검사. 문제가 있으면 AssertionError.
+
+    test_sizes: {image_id: (width, height)} – 박스가 이미지 안에 있는지 확인하는 데 쓴다.
+    예측이 하나도 없는 테스트 이미지는 오류가 아니지만(그 이미지는 0점) 개수를 반환해 확인할 수 있게 한다.
+    """
     c = spec["columns"]
-    assert list(sub.columns) == [c[k] for k in spec["order"]], "컬럼 순서가 다르다"
-    assert sub[c["annotation_id"]].is_unique, "annotation_id 중복"
-    assert set(sub[c["image_id"]]) <= test_ids, "테스트에 없는 image_id"
+    cols = [c[k] for k in spec["order"]]
+    assert list(sub.columns) == cols, f"컬럼 이름·순서가 다르다: {list(sub.columns)}"
+    assert np.isfinite(sub[cols].to_numpy(dtype=float)).all(), "NaN 또는 Inf가 있다"
+    ann = sub[c["annotation_id"]]
+    assert ann.is_unique and ann.min() == 1 and ann.max() == len(sub), "annotation_id는 1부터 빠짐없이 이어져야 한다"
+    ids = sub[c["image_id"]]
+    assert set(ids) <= set(test_sizes), "테스트에 없는 image_id"
     assert set(sub[c["category_id"]]) <= valid_categories, "학습에 없는 category_id"
-    assert (sub[[c["bbox_w"], c["bbox_h"]]] > 0).all().all(), "크기 0 박스"
+    x, y, w, h = (sub[c[k]] for k in ("bbox_x", "bbox_y", "bbox_w", "bbox_h"))
+    assert ((w > 0) & (h > 0)).all(), "크기 0 박스"
+    W = ids.map(lambda i: test_sizes[i][0])
+    H = ids.map(lambda i: test_sizes[i][1])
+    assert ((x >= -tol) & (y >= -tol) & (x + w <= W + tol) & (y + h <= H + tol)).all(), "이미지 밖으로 나간 박스"
     assert sub[c["score"]].between(0, 1).all(), "score 범위 오류"
-    return {"rows": len(sub), "images_with_pred": sub[c["image_id"]].nunique(), "test_images": len(test_ids),
-            "rows_per_image": round(len(sub) / max(sub[c["image_id"]].nunique(), 1), 2)}
+    per_image = ids.value_counts()
+    assert per_image.max() <= max_per_image, f"이미지당 예측이 {max_per_image}개를 넘는다 (최대 {per_image.max()})"
+    dup = sub.duplicated([c["image_id"], c["category_id"], c["bbox_x"], c["bbox_y"], c["bbox_w"], c["bbox_h"]]).sum()
+    assert dup == 0, f"완전히 같은 예측이 {dup}개 중복된다"
+    return {"rows": len(sub), "images_with_pred": int(ids.nunique()), "test_images": len(test_sizes),
+            "images_without_pred": len(set(test_sizes) - set(ids)), "rows_per_image": round(len(sub) / max(ids.nunique(), 1), 2),
+            "max_per_image": int(per_image.max())}

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import linear_sum_assignment
 
 from .boxes import containment, iou_matrix, out_of_bounds, to_xyxy
 from .data import expected_codes, load_rgb
@@ -76,7 +77,10 @@ class LabelCleaner:
         return seg[keep]
 
     def calibrate(self, aud: pd.DataFrame) -> np.ndarray:
-        """잘 맞는 쌍(IoU > calib_iou)에서 라벨 박스와 분할 박스의 테두리 차이 중앙값."""
+        """잘 맞는 쌍(IoU > calib_iou)에서 라벨 박스와 분할 박스의 테두리 차이 중앙값.
+
+        라벨과 분할 영역은 헝가리안 매칭으로 1:1 대응시킨다 (두 라벨이 같은 분할 영역에 짝지어지는 것을 막는다).
+        """
         diffs = []
         for f, g in aud[~aud["out_of_bounds"]].groupby("file_name"):
             seg = self.segs[f].boxes
@@ -84,7 +88,7 @@ class LabelCleaner:
                 continue
             lab = to_xyxy(g)
             m = iou_matrix(lab, seg)
-            for i, j in enumerate(m.argmax(axis=1)):
+            for i, j in zip(*linear_sum_assignment(-m)):
                 if m[i, j] > self.calib_iou:
                     diffs.append(lab[i] - seg[j])
         self.calib = np.median(np.array(diffs), axis=0)

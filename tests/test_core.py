@@ -111,7 +111,42 @@ def test_submission_format_and_validation():
     sub = to_submission(pred, SPEC)
     assert list(sub.columns) == SPEC["order"]
     assert sub["image_id"].tolist() == [1, 2] and sub["annotation_id"].tolist() == [1, 2]
-    info = validate_submission(sub, SPEC, test_ids={1, 2, 3}, valid_categories={1900, 3351})
-    assert info["rows"] == 2
+    sizes = {i: (976, 1280) for i in (1, 2, 3)}
+    info = validate_submission(sub, SPEC, sizes, valid_categories={1900, 3351})
+    assert info["rows"] == 2 and info["images_without_pred"] == 1
+    with pytest.raises(AssertionError):  # 테스트에 없는 이미지
+        validate_submission(sub, SPEC, {1: (976, 1280)}, valid_categories={1900, 3351})
+    out = sub.copy()
+    out.loc[0, "bbox_x"] = 970.0  # 970 + 20 > 976 → 이미지 밖
     with pytest.raises(AssertionError):
-        validate_submission(sub, SPEC, test_ids={1}, valid_categories={1900, 3351})
+        validate_submission(out, SPEC, sizes, valid_categories={1900, 3351})
+    nan = sub.copy()
+    nan.loc[1, "score"] = float("nan")
+    with pytest.raises(AssertionError):
+        validate_submission(nan, SPEC, sizes, valid_categories={1900, 3351})
+
+
+def test_fold_of_parses_copy_paste_and_full():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("run_experiment", Path(__file__).resolve().parents[1] / "scripts" / "run_experiment.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.fold_of("data_fold0.yaml") == 0
+    assert mod.fold_of("data_fold3_cp.yaml") == 3
+    assert mod.fold_of("data_full.yaml") is None and mod.fold_of("data_full_cp.yaml") is None
+
+
+# ---------- 2단계 결합 ----------
+from pilldet.two_stage import combine  # noqa: E402
+
+
+def test_combine_top_k_and_scores():
+    boxes = pd.DataFrame({"file_name": ["a.png"], "category_id": [20], "x": [0.0], "y": [0.0], "w": [10.0], "h": [10.0],
+                          "score": [0.8]})
+    prob = np.array([[0.1, 0.6, 0.3]])
+    ids = np.array([10, 20, 30])
+    out = combine(boxes, prob, ids, top_k=2)
+    assert out["category_id"].tolist() == [20, 30]
+    assert out["score"].tolist() == pytest.approx([0.8 * 0.6, 0.8 * 0.3])
+    # YOLO 1순위(20)에 비중 0.5를 섞으면 20의 확률이 0.5*0.6 + 0.5 = 0.8
+    assert combine(boxes, prob, ids, top_k=1, yolo_weight=0.5)["score"].iloc[0] == pytest.approx(0.8 * 0.8)

@@ -21,6 +21,7 @@ os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import argparse  # noqa: E402
 import logging  # noqa: E402
+import re  # noqa: E402
 import shutil  # noqa: E402
 import sys  # noqa: E402
 import time  # noqa: E402
@@ -28,6 +29,7 @@ from datetime import date  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 import pandas as pd  # noqa: E402
+from PIL import Image  # noqa: E402
 
 REPO_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_DIR / "src"))
@@ -55,8 +57,9 @@ def setup_logger(path: Path) -> logging.Logger:
 
 
 def fold_of(data_yaml: str) -> int | None:
-    stem = Path(data_yaml).stem  # data_fold0 → 0, data_full → None
-    return int(stem.replace("data_fold", "")) if stem.startswith("data_fold") else None
+    """data_fold0.yaml → 0, data_fold0_cp.yaml → 0, data_full*.yaml → None (전체 학습, 검증 없음)."""
+    m = re.match(r"data_fold(\d+)", Path(data_yaml).stem)
+    return int(m.group(1)) if m else None
 
 
 def main():
@@ -76,13 +79,23 @@ def main():
     log.info(f"설정: {cfg}")
 
     # 1. 학습
+    # 전체 데이터 학습(data_full*)은 검증 데이터가 학습에 포함되므로 검증 점수로 모델을 고르면 안 된다.
+    # → 검증을 끄고, 교차검증으로 정한 고정 에포크만큼 학습한 마지막 가중치(last.pt)를 쓴다.
+    k = fold_of(cfg["data"])
+    overrides = {} if k is not None else {"val": False, "patience": 0}
     t0 = time.time()
-    run_dir = runs_dir / name if args.skip_train else train(cfg, P.dataset, runs_dir)
+    run_dir = runs_dir / name if args.skip_train else train(cfg, P.dataset, runs_dir, **overrides)
     train_min = (time.time() - t0) / 60
-    best = best_epoch(run_dir)
-    log.info(f"[1/4] 학습 완료 ({train_min:.1f}분): 최고 에포크 {best['epoch']} / {best['epochs_run']} "
-             f"| P {best['precision']:.3f} R {best['recall']:.3f} mAP50 {best['mAP50']:.4f} mAP50-95 {best['mAP50_95']:.4f}")
-    weights = run_dir / "weights" / "best.pt"
+    if k is not None:
+        best = best_epoch(run_dir)
+        log.info(f"[1/4] 학습 완료 ({train_min:.1f}분): 최고 에포크 {best['epoch']} / {best['epochs_run']} "
+                 f"| P {best['precision']:.3f} R {best['recall']:.3f} mAP50 {best['mAP50']:.4f} mAP50-95 {best['mAP50_95']:.4f}")
+        weights = run_dir / "weights" / "best.pt"
+    else:
+        best = {"epoch": cfg["epochs"], "epochs_run": cfg["epochs"], "precision": float("nan"), "recall": float("nan"),
+                "mAP50": float("nan"), "mAP50_95": float("nan")}
+        log.info(f"[1/4] 전체 데이터 학습 완료 ({train_min:.1f}분): 고정 {cfg['epochs']} 에포크, last.pt 사용 (검증 없음)")
+        weights = run_dir / "weights" / "last.pt"
     for p in PLOTS:
         if (run_dir / p).exists():
             shutil.copy2(run_dir / p, exp_dir / p)
@@ -92,14 +105,23 @@ def main():
     imgsz = cfg.get("imgsz", 640)
 
     # 2. val 평가 – Ultralytics와 별개로 COCO mAP를 직접 계산해 이후 앙상블·2단계 모델과 같은 기준으로 비교한다
-    k = fold_of(cfg["data"])
     coco = {"mAP50_95": None, "mAP50": None, "mAP75": None, "seen_mAP50_95": None}
-    if k is not None:
+    single = bool(cfg.get("single_cls"))
+    if k is not None and single:
+        # 1-클래스 검출기: 약 이름이 없으므로 위치만 평가한다 (모든 클래스를 0으로 통일)
         val_files = [l.strip().split("/")[-1] for l in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if l.strip()]
         pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz)
         gt_val = gt_all[gt_all["file_name"].isin(val_files)]
-        # 학습 fold에 있는 클래스만으로 다시 평가한다. 최종 모델은 전체 데이터로 학습해 모든 클래스를 보므로,
-        # "처음 보는 약" 때문에 생기는 감점을 뺀 이 값이 실험 간 비교에 더 공정하다.
+        coco = coco_map(pred_val.assign(category_id=0), gt_val.assign(category_id=0))
+        coco.pop("per_class")
+        coco["seen_mAP50_95"] = None
+        log.info(f"[2/4] fold {k} 위치만 평가 (1-클래스): mAP50-95 {coco['mAP50_95']:.4f} | mAP50 {coco['mAP50']:.4f}")
+    elif k is not None:
+        val_files = [l.strip().split("/")[-1] for l in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if l.strip()]
+        pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz)
+        gt_val = gt_all[gt_all["file_name"].isin(val_files)]
+        # 보조 진단 지표: 학습 fold에 있는 클래스만으로 다시 평가한다 (가장 어려운 "처음 보는 약"을 뺀 조건부 점수라
+        # 낙관적이다). 모델 선택의 주 지표는 전체 mAP이고, 이 값은 오류를 분해해 보는 용도로만 쓴다.
         seen = set(gt_all.loc[~gt_all["file_name"].isin(val_files), "category_id"])
         seen_map = coco_map(pred_val[pred_val["category_id"].isin(seen)], gt_val[gt_val["category_id"].isin(seen)])
         coco = coco_map(pred_val, gt_val)
@@ -111,17 +133,21 @@ def main():
                  f" | 학습에 있는 클래스만 mAP50-95 {coco['seen_mAP50_95']:.4f}")
         log.info(f"      AP50-95 하위 5개 클래스:\n{pc.sort_values('AP50_95').head(5)[['dl_name', 'n_boxes', 'AP50_95']].to_string(index=False)}")
 
-    # 3. 테스트 예측 → 제출 파일
-    test_paths = list_test_images(P.test_img)
-    pred_test = predict_images(weights, test_paths, class_map, imgsz=imgsz)
-    spec = load_submission_spec(REPO_DIR / "configs" / "submission.yaml")
-    sub = to_submission(pred_test, spec)
-    check = validate_submission(sub, spec, {int(p.stem) for p in test_paths}, set(class_map["category_id"]))
-    sub_dir = REPO_DIR / "submissions"
-    sub_dir.mkdir(exist_ok=True)
-    sub.to_csv(sub_dir / f"{name}.csv", index=False)
-    log.info(f"[3/4] 제출 파일: submissions/{name}.csv {check}"
-             + ("" if spec.get("verified") else "  ⚠️ 제출 형식 미확인 (configs/submission.yaml)"))
+    # 3. 테스트 예측 → 제출 파일 (1-클래스 검출기는 약 이름이 없어 제출하지 않는다)
+    if single:
+        log.info("[3/4] 1-클래스 검출기 → 제출 파일 생략 (2단계 모델에서 분류기와 결합해 제출)")
+    else:
+        test_paths = list_test_images(P.test_img)
+        pred_test = predict_images(weights, test_paths, class_map, imgsz=imgsz)
+        spec = load_submission_spec(REPO_DIR / "configs" / "submission.yaml")
+        sub = to_submission(pred_test, spec)
+        test_sizes = {int(p.stem): Image.open(p).size for p in test_paths}
+        check = validate_submission(sub, spec, test_sizes, set(class_map["category_id"]))
+        sub_dir = REPO_DIR / "submissions"
+        sub_dir.mkdir(exist_ok=True)
+        sub.to_csv(sub_dir / f"{name}.csv", index=False)
+        log.info(f"[3/4] 제출 파일: submissions/{name}.csv {check}"
+                 + ("" if spec.get("verified") else "  ⚠️ 제출 형식 미확인 (configs/submission.yaml)"))
 
     # 4. 실험 기록
     row = {"id": name.split("_")[0].upper(), "name": name, "date": date.today().isoformat(),

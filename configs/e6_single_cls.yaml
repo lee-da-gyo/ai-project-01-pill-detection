@@ -1,0 +1,13 @@
+# e6_single_cls – 약 종류와 상관없이 "알약"만 찾는 검출기
+# 2단계 모델: 이 검출기로 위치를 찾고, 분류기가 약 이름을 판정한다. 처음 보는 약도 "알약"으로는 찾을 수 있다
+name: e6_single_cls
+description: "YOLO11s, 640px, 1-클래스(알약) 검출기 – 2단계 모델의 위치 검출용"
+model: yolo11s.pt          # COCO 사전학습 가중치
+data: data_fold0.yaml      # 조합 단위 5-Fold 중 fold 0
+imgsz: 640
+epochs: 100
+patience: 30               # val 개선이 30 에포크 없으면 조기 종료
+batch: 16
+optimizer: auto
+workers: 4
+single_cls: true           # 모든 클래스를 하나로 합쳐 학습

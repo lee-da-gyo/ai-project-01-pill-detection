@@ -1,9 +1,16 @@
-numpy
-pandas
-matplotlib
-pillow
-opencv-python
-torch
-torchvision
-ultralytics
-koreanize-matplotlib
+# 로컬 검증 환경 (Python 3.14, Windows 11, RTX 3060, CUDA 12.8)에서 확인한 버전
+# torch·torchvision은 CUDA 버전에 맞는 빌드를 설치한다: https://pytorch.org/get-started/locally/
+numpy==2.4.6
+pandas==3.0.3
+matplotlib==3.11.0
+pillow==12.3.0
+opencv-python==5.0.0.93
+scikit-learn==1.9.0
+scipy==1.18.0
+pycocotools==2.0.11
+pyyaml==6.0.3
+torch==2.11.0
+torchvision==0.26.0
+ultralytics==8.4.176
+pytest==9.0.3
+koreanize-matplotlib  # Kaggle(Linux)에서 그래프 한글 표시용. Windows는 맑은 고딕을 쓴다
