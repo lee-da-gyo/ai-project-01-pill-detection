@@ -150,3 +150,31 @@ def test_combine_top_k_and_scores():
     assert out["score"].tolist() == pytest.approx([0.8 * 0.6, 0.8 * 0.3])
     # YOLO 1순위(20)에 비중 0.5를 섞으면 20의 확률이 0.5*0.6 + 0.5 = 0.8
     assert combine(boxes, prob, ids, top_k=1, yolo_weight=0.5)["score"].iloc[0] == pytest.approx(0.8 * 0.8)
+
+
+# ---------- 앙상블 (WBF) ----------
+from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
+
+
+def _pred(x, score, cid=1, f="a.png"):
+    return pd.DataFrame({"file_name": [f], "category_id": [cid], "x": [x], "y": [0.0], "w": [100.0], "h": [100.0], "score": [score]})
+
+
+def test_wbf_fuses_overlapping_boxes_by_score():
+    # 두 모델이 같은 알약을 x=0, x=10으로 그림 → 점수 가중 평균 위치, 두 모델 모두 찾았으므로 점수는 평균
+    out = weighted_boxes_fusion([_pred(0, 0.9), _pred(10, 0.3)])
+    assert len(out) == 1
+    assert out["x"].iloc[0] == pytest.approx((0 * 0.9 + 10 * 0.3) / 1.2)
+    assert out["score"].iloc[0] == pytest.approx((0.9 + 0.3) / 2)
+
+
+def test_wbf_keeps_separate_classes_and_penalizes_single_model():
+    out = weighted_boxes_fusion([_pred(0, 0.8, cid=1), _pred(0, 0.8, cid=2)])
+    assert sorted(out["category_id"]) == [1, 2]
+    # 한 모델만 찾은 박스는 점수가 모델 수만큼 줄어든다
+    assert out["score"].tolist() == pytest.approx([0.4, 0.4])
+
+
+def test_wbf_does_not_merge_distant_boxes():
+    out = weighted_boxes_fusion([_pred(0, 0.9), _pred(500, 0.9)])
+    assert len(out) == 2

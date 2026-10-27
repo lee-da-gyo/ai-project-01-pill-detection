@@ -1,22 +1,25 @@
 ============================= test session starts =============================
 plugins: anyio-4.12.1
-collecting ... collected 16 items
+collecting ... collected 19 items
 
-tests/test_core.py::test_parse_file_name PASSED                          [  6%]
-tests/test_core.py::test_iou_identical_and_disjoint PASSED               [ 12%]
-tests/test_core.py::test_iou_half_overlap PASSED                         [ 18%]
-tests/test_core.py::test_iou_empty_inputs PASSED                         [ 25%]
-tests/test_core.py::test_containment_inner_box PASSED                    [ 31%]
-tests/test_core.py::test_out_of_bounds PASSED                            [ 37%]
-tests/test_core.py::test_yolo_roundtrip[box0] PASSED                     [ 43%]
-tests/test_core.py::test_yolo_roundtrip[box1] PASSED                     [ 50%]
-tests/test_core.py::test_yolo_roundtrip[box2] PASSED                     [ 56%]
-tests/test_core.py::test_yolo_normalized_range PASSED                    [ 62%]
-tests/test_core.py::test_folds_keep_combo_together PASSED                [ 68%]
-tests/test_core.py::test_coco_map_perfect_and_wrong_class PASSED         [ 75%]
-tests/test_core.py::test_limit_per_image_keeps_top_unique PASSED         [ 81%]
-tests/test_core.py::test_submission_format_and_validation PASSED         [ 87%]
-tests/test_core.py::test_fold_of_parses_copy_paste_and_full PASSED       [ 93%]
-tests/test_core.py::test_combine_top_k_and_scores PASSED                 [100%]
+tests/test_core.py::test_parse_file_name PASSED                          [  5%]
+tests/test_core.py::test_iou_identical_and_disjoint PASSED               [ 10%]
+tests/test_core.py::test_iou_half_overlap PASSED                         [ 15%]
+tests/test_core.py::test_iou_empty_inputs PASSED                         [ 21%]
+tests/test_core.py::test_containment_inner_box PASSED                    [ 26%]
+tests/test_core.py::test_out_of_bounds PASSED                            [ 31%]
+tests/test_core.py::test_yolo_roundtrip[box0] PASSED                     [ 36%]
+tests/test_core.py::test_yolo_roundtrip[box1] PASSED                     [ 42%]
+tests/test_core.py::test_yolo_roundtrip[box2] PASSED                     [ 47%]
+tests/test_core.py::test_yolo_normalized_range PASSED                    [ 52%]
+tests/test_core.py::test_folds_keep_combo_together PASSED                [ 57%]
+tests/test_core.py::test_coco_map_perfect_and_wrong_class PASSED         [ 63%]
+tests/test_core.py::test_limit_per_image_keeps_top_unique PASSED         [ 68%]
+tests/test_core.py::test_submission_format_and_validation PASSED         [ 73%]
+tests/test_core.py::test_fold_of_parses_copy_paste_and_full PASSED       [ 78%]
+tests/test_core.py::test_combine_top_k_and_scores PASSED                 [ 84%]
+tests/test_core.py::test_wbf_fuses_overlapping_boxes_by_score PASSED     [ 89%]
+tests/test_core.py::test_wbf_keeps_separate_classes_and_penalizes_single_model PASSED [ 94%]
+tests/test_core.py::test_wbf_does_not_merge_distant_boxes PASSED         [100%]
 
-============================= 16 passed in 7.27s ==============================
+============================= 19 passed in 6.91s ==============================
