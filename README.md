@@ -217,21 +217,36 @@ flowchart TB
 
 ```
 ai-project-01-pill-detection/
-├── notebooks/
-│   ├── 01_eda.ipynb            # 탐색적 데이터 분석 → 의사결정
-│   └── 02_preprocess.ipynb     # 라벨 정제 · YOLO/COCO 변환 · 5-Fold
-├── src/                        # 재사용 코드 (학습 · 추론)
+├── src/pilldet/                # 📦 공통 코드 패키지 (노트북·스크립트가 함께 사용)
+│   ├── config.py               #   경로 자동 탐색 (로컬 · Kaggle), seed, fold 수
+│   ├── data.py                 #   라벨 병합, 이미지 로딩, 파일명 파싱
+│   ├── boxes.py                #   좌표 변환, IoU, YOLO ↔ 픽셀 변환
+│   ├── segment.py              #   배경 차분 기반 알약 분할
+│   ├── clean.py                #   라벨 감사 · 규칙 기반 수정 · 무결성 검사
+│   ├── split.py                #   조합 단위 Stratified Group K-Fold
+│   ├── export.py               #   YOLO / COCO 내보내기 · 왕복 검증
+│   └── viz.py                  #   한글 폰트, 박스 시각화
+├── scripts/
+│   └── prepare_data.py         # ⚙️ 데이터 준비 전체를 한 번에 실행 (CLI)
+├── tests/
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (11개)
+├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
+│   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
+│   └── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
 ├── configs/                    # 학습 설정
 ├── reports/
 │   ├── figures/                # 분석 그래프 (보고서용)
+│   ├── logs/                   # 스크립트 · 테스트 실행 로그
 │   ├── label_fixes.csv         # 라벨 수정 내역
 │   ├── class_map.csv           # 약 코드 ↔ YOLO 클래스 번호
 │   ├── folds.csv               # 이미지별 fold
 │   └── annotations_clean.json  # 정제된 COCO 라벨
 └── docs/
-    ├── PLAN.md                 # 일정표 · 실험 기록
+    ├── PLAN.md                 # 계획서 · 요구사항 추적 · 실험 기록
     └── worklog/                # 일별 업무일지
 ```
+
+**설계 원칙**: 로직은 `src/pilldet`에 한 번만 구현하고, 노트북은 그것을 불러 **과정과 결과를 설명**하며, 스크립트는 같은 로직을 **자동으로 실행**한다. 그래서 노트북과 스크립트의 결과가 항상 같다.
 
 <br>
 
@@ -242,7 +257,7 @@ ai-project-01-pill-detection/
 
 1. Kaggle에서 노트북을 Import 한다 (File → Import Notebook)
 2. 오른쪽 패널 **Add Input**에서 대회 데이터를 연결한다. 데이터 경로는 `/kaggle/input`에서 자동으로 찾는다
-3. Settings → **Internet On** (한글 폰트 설치용) → **Run All**
+3. Settings → **Internet On** (공통 코드 내려받기, 한글 폰트 설치용) → **Run All**. 노트북이 이 레포를 자동으로 clone 해서 `src/pilldet`을 불러온다
 4. `01_eda` → `02_preprocess` 순서로 실행한다. 결과물은 `/kaggle/working/`에 저장된다
 
 </details>
@@ -252,9 +267,12 @@ ai-project-01-pill-detection/
 
 ```bash
 pip install -r requirements.txt
+python scripts/prepare_data.py      # 데이터 준비 전체 실행 (약 10초)
+python -m pytest tests -v           # 단위 테스트
 ```
 
-데이터 폴더를 레포 옆(`../sprint_ai_project1_data`)에 두거나, 환경 변수 `PILL_DATA_DIR`로 경로를 지정한 뒤 노트북을 실행한다.
+데이터 폴더를 레포 옆(`../sprint_ai_project1_data`)에 두면 자동으로 찾는다. 다른 위치라면 `--data-dir` 옵션이나 환경 변수 `PILL_DATA_DIR`로 지정한다.
+실행 로그: [`reports/logs/prepare_data.log`](reports/logs/prepare_data.log) · [`reports/logs/pytest.log`](reports/logs/pytest.log)
 
 </details>
 

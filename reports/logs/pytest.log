@@ -1,0 +1,17 @@
+============================= test session starts =============================
+plugins: anyio-4.12.1
+collecting ... collected 11 items
+
+tests/test_core.py::test_parse_file_name PASSED                          [  9%]
+tests/test_core.py::test_iou_identical_and_disjoint PASSED               [ 18%]
+tests/test_core.py::test_iou_half_overlap PASSED                         [ 27%]
+tests/test_core.py::test_iou_empty_inputs PASSED                         [ 36%]
+tests/test_core.py::test_containment_inner_box PASSED                    [ 45%]
+tests/test_core.py::test_out_of_bounds PASSED                            [ 54%]
+tests/test_core.py::test_yolo_roundtrip[box0] PASSED                     [ 63%]
+tests/test_core.py::test_yolo_roundtrip[box1] PASSED                     [ 72%]
+tests/test_core.py::test_yolo_roundtrip[box2] PASSED                     [ 81%]
+tests/test_core.py::test_yolo_normalized_range PASSED                    [ 90%]
+tests/test_core.py::test_folds_keep_combo_together PASSED                [100%]
+
+============================= 11 passed in 2.03s ==============================

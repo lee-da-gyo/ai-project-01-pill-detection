@@ -18,6 +18,7 @@ submissions/*.csv
 
 # Python / Jupyter
 __pycache__/
+.pytest_cache/
 *.pyc
 .ipynb_checkpoints/
 .venv/
