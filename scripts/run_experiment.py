@@ -34,7 +34,7 @@ from PIL import Image  # noqa: E402
 REPO_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_DIR / "src"))
 
-from pilldet.config import get_paths  # noqa: E402
+from pilldet.config import N_FOLDS, get_paths  # noqa: E402
 from pilldet.data import list_test_images, load_clean_annotations  # noqa: E402
 from pilldet.evaluate import coco_map  # noqa: E402
 from pilldet.predict import predict_images  # noqa: E402
@@ -72,9 +72,15 @@ def main():
 
     cfg = load_config(args.config)
     if args.fold is not None:
-        assert fold_of(cfg["data"]) is not None, "전체 학습 설정에는 --fold를 쓸 수 없다"
+        if fold_of(cfg["data"]) is None:
+            raise ValueError("전체 학습 설정에는 --fold를 쓸 수 없다")
+        if not 0 <= args.fold < N_FOLDS:
+            raise ValueError(f"--fold는 0~{N_FOLDS - 1} 범위여야 한다: {args.fold}")
         cfg["data"] = re.sub(r"data_fold\d+", f"data_fold{args.fold}", cfg["data"])
-        cfg["name"] = f"{cfg['name']}_f{args.fold}"
+        # 이름 규칙: fold 0은 기본 이름 그대로, fold 1~4는 _f<k> (summarize_cv.py와 같은 규칙)
+        if args.fold != 0:
+            cfg["name"] = f"{cfg['name']}_f{args.fold}"
+        cfg["description"] = re.sub(r"fold \d+", f"fold {args.fold}", cfg.get("description", ""))
     name = cfg["name"]
     P = get_paths(REPO_DIR)
     runs_dir = REPO_DIR / "runs"

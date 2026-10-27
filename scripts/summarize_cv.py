@@ -29,8 +29,11 @@ def fold_dirs(exp: str, exp_root: Path) -> list[Path | None]:
 
 
 def main():
-    exps = sys.argv[1:]
-    assert exps, "실험 이름을 하나 이상 넣자. 예: python scripts/summarize_cv.py e0_baseline"
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    allow_partial = "--partial" in sys.argv  # 진행 중 점검용. 결과에 complete=False로 표시된다
+    exps = args
+    if not exps:
+        raise SystemExit("실험 이름을 하나 이상 넣자. 예: python scripts/summarize_cv.py e0_baseline [--partial]")
     P = get_paths(REPO_DIR)
     gt = load_clean_annotations(P.out / "annotations_clean.json")
     folds = pd.read_csv(P.out / "folds.csv")
@@ -47,14 +50,20 @@ def main():
             per_fold.append(coco_map(p, gt[gt["file_name"].isin(val_files)])["mAP50_95"])
             preds.append(p)
             used.append(k)
+        complete = used == list(range(N_FOLDS))
+        if not complete and not allow_partial:
+            raise SystemExit(f"{exp}: fold {sorted(set(range(N_FOLDS)) - set(used))} 결과가 없다. "
+                             "5개 fold가 모두 있어야 OOF라고 부를 수 있다 (진행 중 점검은 --partial)")
         if not preds:
-            print(f"{exp}: 결과 없음")
             continue
         oof = pd.concat(preds)
         covered = set(folds.loc[folds["fold"].isin(used), "file_name"])  # 결과가 있는 fold의 검증 이미지 전체
+        if complete:
+            assert len(covered) == len(folds) == folds["file_name"].nunique(), "OOF가 전체 이미지를 정확히 한 번씩 덮지 않는다"
         m = coco_map(oof, gt[gt["file_name"].isin(covered)])
         s = pd.Series(per_fold)
-        rows.append({"experiment": exp, "folds": ",".join(map(str, used)), "fold_mean": round(s.mean(), 4),
+        rows.append({"experiment": exp, "complete": complete, "n_images": len(covered),
+                     "folds": ",".join(map(str, used)), "fold_mean": round(s.mean(), 4),
                      "fold_std": round(s.std(ddof=1), 4) if len(s) > 1 else None, "fold_min": round(s.min(), 4),
                      "oof_mAP50_95": round(m["mAP50_95"], 4), "oof_mAP50": round(m["mAP50"], 4),
                      "per_fold": " / ".join(f"{v:.3f}" for v in per_fold)})

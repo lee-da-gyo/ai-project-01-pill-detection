@@ -114,15 +114,15 @@ def test_submission_format_and_validation():
     sizes = {i: (976, 1280) for i in (1, 2, 3)}
     info = validate_submission(sub, SPEC, sizes, valid_categories={1900, 3351})
     assert info["rows"] == 2 and info["images_without_pred"] == 1
-    with pytest.raises(AssertionError):  # 테스트에 없는 이미지
+    with pytest.raises(ValueError):  # 테스트에 없는 이미지
         validate_submission(sub, SPEC, {1: (976, 1280)}, valid_categories={1900, 3351})
     out = sub.copy()
     out.loc[0, "bbox_x"] = 970.0  # 970 + 20 > 976 → 이미지 밖
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         validate_submission(out, SPEC, sizes, valid_categories={1900, 3351})
     nan = sub.copy()
     nan.loc[1, "score"] = float("nan")
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         validate_submission(nan, SPEC, sizes, valid_categories={1900, 3351})
 
 
@@ -178,3 +178,14 @@ def test_wbf_keeps_separate_classes_and_penalizes_single_model():
 def test_wbf_does_not_merge_distant_boxes():
     out = weighted_boxes_fusion([_pred(0, 0.9), _pred(500, 0.9)])
     assert len(out) == 2
+
+
+def test_wbf_weighted_and_validation():
+    # 가중치 2:1 → 좌표는 가중 점수(0.9·2, 0.3·1)로 평균, 점수 = 가중 점수 평균 × min(2,2) / 가중치 합 3
+    out = weighted_boxes_fusion([_pred(0, 0.9), _pred(10, 0.3)], weights=[2, 1])
+    assert out["x"].iloc[0] == pytest.approx((0 * 1.8 + 10 * 0.3) / 2.1)
+    assert out["score"].iloc[0] == pytest.approx((1.8 + 0.3) / 2 * 2 / 3)
+    with pytest.raises(ValueError):
+        weighted_boxes_fusion([_pred(0, 0.9)], weights=[1, 1])
+    with pytest.raises(ValueError):
+        weighted_boxes_fusion([_pred(0, 0.9), _pred(0, 0.9)], weights=[1, 0])

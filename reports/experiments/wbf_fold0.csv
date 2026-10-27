@@ -1,0 +1,15 @@
+﻿방법,구성,iou_thr,mAP50_95,mAP50
+e0_baseline,단일,,0.8354,0.8471
+e2_yolo11m,단일,,0.8387,0.8473
+e3_hsv,단일,,0.8369,0.8472
+e3_flipud,단일,,0.8327,0.8472
+e1_imgsz1280,단일,,0.8297,0.8371
+WBF,e0_baseline+e2_yolo11m,0.5,0.8405,0.8473
+WBF,e0_baseline+e2_yolo11m,0.55,0.8405,0.8473
+WBF,e0_baseline+e2_yolo11m,0.6,0.8405,0.8473
+WBF,e0_baseline+e2_yolo11m+e3_hsv,0.5,0.8402,0.8473
+WBF,e0_baseline+e2_yolo11m+e3_hsv,0.55,0.8401,0.8473
+WBF,e0_baseline+e2_yolo11m+e3_hsv,0.6,0.8401,0.8473
+WBF,e0_baseline+e2_yolo11m+e3_hsv+e3_flipud+e1_imgsz1280,0.5,0.8408,0.8473
+WBF,e0_baseline+e2_yolo11m+e3_hsv+e3_flipud+e1_imgsz1280,0.55,0.8408,0.8473
+WBF,e0_baseline+e2_yolo11m+e3_hsv+e3_flipud+e1_imgsz1280,0.6,0.8408,0.8473

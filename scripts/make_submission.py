@@ -23,6 +23,7 @@ import sys  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 import pandas as pd  # noqa: E402
+import yaml  # noqa: E402
 from PIL import Image  # noqa: E402
 
 REPO_DIR = Path(__file__).resolve().parents[1]
@@ -33,20 +34,29 @@ from pilldet.data import list_test_images  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
 from pilldet.predict import predict_images  # noqa: E402
 from pilldet.submission import load_submission_spec, to_submission, validate_submission  # noqa: E402
-from pilldet.train import load_config  # noqa: E402
 
 
 def weights_of(run: str) -> tuple[Path, int]:
-    """실험 이름 → (가중치 경로, 학습 해상도). 전체 학습 실험은 last.pt를 쓴다."""
+    """실험 이름 → (가중치 경로, 학습 해상도).
+
+    학습 당시의 설정 스냅샷(runs/<run>/args.yaml, Ultralytics가 저장)을 읽는다. 현재 configs/는 그 뒤에 바뀌었을 수 있다.
+    검증 없이 학습한 전체 데이터 모델(val: false)은 last.pt, 그 밖에는 best.pt를 쓴다. 모호하면 추측하지 않고 멈춘다.
+    """
     run_dir = REPO_DIR / "runs" / run
-    head, _, tail = run.rpartition("_f")
-    base = head if tail.isdigit() else run  # e3_flipud_f1 → e3_flipud, e3_flipud → e3_flipud
-    cfg_path = REPO_DIR / "configs" / f"{base}.yaml"
-    cfg = load_config(cfg_path) if cfg_path.exists() else {"imgsz": 640, "data": ""}
-    full = "data_full" in str(cfg.get("data", ""))
+    args_path = run_dir / "args.yaml"
+    if not args_path.exists():
+        raise FileNotFoundError(f"학습 설정 스냅샷이 없다: {args_path}")
+    with open(args_path, encoding="utf-8") as f:
+        snap = yaml.safe_load(f)
+    if snap.get("single_cls"):
+        raise ValueError(f"{run}은 1-클래스 검출기라 약 이름을 낼 수 없다")
+    full = Path(str(snap["data"])).stem.startswith("data_full")
+    if full and snap.get("val", True):
+        raise ValueError(f"{run}: 전체 데이터 학습인데 검증이 켜져 있다 → best.pt를 믿을 수 없다")
     w = run_dir / "weights" / ("last.pt" if full else "best.pt")
-    assert w.exists(), f"가중치가 없다: {w}"
-    return w, int(cfg.get("imgsz", 640))
+    if not w.exists():
+        raise FileNotFoundError(f"가중치가 없다: {w}")
+    return w, int(snap["imgsz"])
 
 
 def main():
@@ -56,6 +66,8 @@ def main():
     ap.add_argument("--name", required=True)
     ap.add_argument("--tta", action="store_true")
     ap.add_argument("--iou-thr", type=float, default=0.55)
+    ap.add_argument("--conf", type=float, default=0.001, help="mAP 평가는 낮은 점수 예측까지 순위로 쓴다")
+    ap.add_argument("--max-det", type=int, default=100, help="COCO maxDets=100")
     args = ap.parse_args()
 
     P = get_paths(REPO_DIR)
@@ -69,16 +81,17 @@ def main():
     preds = []
     for run in args.runs:
         w, imgsz = weights_of(run)
-        p = predict_images(w, test_paths, class_map, imgsz=imgsz, augment=args.tta)
+        p = predict_images(w, test_paths, class_map, imgsz=imgsz, augment=args.tta, conf=args.conf, max_det=args.max_det)
         log(f"{run}: {w.name}, imgsz {imgsz}, TTA {args.tta} → 예측 {len(p):,}개")
         preds.append(p)
     pred = preds[0] if len(preds) == 1 else weighted_boxes_fusion(preds, args.weights, iou_thr=args.iou_thr)
     # WBF 후에도 이미지당 상위 100개만 남긴다 (COCO maxDets)
-    pred = pred.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
+    pred = pred.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(args.max_det)
 
     spec = load_submission_spec(REPO_DIR / "configs" / "submission.yaml")
     sub = to_submission(pred, spec)
-    check = validate_submission(sub, spec, {int(p.stem): Image.open(p).size for p in test_paths}, set(class_map["category_id"]))
+    check = validate_submission(sub, spec, {int(p.stem): Image.open(p).size for p in test_paths}, set(class_map["category_id"]),
+                                max_per_image=args.max_det)
     out = REPO_DIR / "submissions" / f"{args.name}.csv"
     out.parent.mkdir(exist_ok=True)
     sub.to_csv(out, index=False)

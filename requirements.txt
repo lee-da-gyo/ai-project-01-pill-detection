@@ -13,4 +13,4 @@ torch==2.11.0
 torchvision==0.26.0
 ultralytics==8.4.176
 pytest==9.0.3
-koreanize-matplotlib  # Kaggle(Linux)에서 그래프 한글 표시용. Windows는 맑은 고딕을 쓴다
+koreanize-matplotlib==0.1.1  # Kaggle(Linux)에서 그래프 한글 표시용. Windows는 맑은 고딕을 쓴다
