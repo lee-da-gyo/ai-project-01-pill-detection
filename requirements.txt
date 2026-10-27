@@ -1,0 +1,9 @@
+numpy
+pandas
+matplotlib
+pillow
+opencv-python
+torch
+torchvision
+ultralytics
+koreanize-matplotlib

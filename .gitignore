@@ -1,0 +1,29 @@
+# 원본·변환 데이터 (용량이 커서 제외)
+data/
+datasets/
+train_images/
+test_images/
+train_annotations/
+*.zip
+
+# 학습 산출물
+runs/
+weights/
+*.pt
+*.pth
+*.onnx
+
+# 제출 파일
+submissions/*.csv
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
