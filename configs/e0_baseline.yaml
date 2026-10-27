@@ -1,0 +1,12 @@
+# E0 베이스라인 – 이후 모든 실험의 기준점
+# 원칙: 다음 실험부터는 이 파일을 복사해 한 가지만 바꾼다.
+name: e0_baseline
+description: YOLO11s, 640px, Ultralytics 기본 증강, fold 0
+model: yolo11s.pt          # COCO 사전학습 가중치
+data: data_fold0.yaml      # 조합 단위 5-Fold 중 fold 0
+imgsz: 640
+epochs: 100
+patience: 30               # val 개선이 30 에포크 없으면 조기 종료
+batch: 16
+optimizer: auto
+workers: 4

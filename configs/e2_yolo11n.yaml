@@ -1,0 +1,12 @@
+# e2_yolo11n – E0에서 한 가지만 바꾼 실험
+# 비교 기준: e0_baseline
+name: e2_yolo11n
+description: YOLO11n, 640px (E0 대비 모델 크기만 변경)
+model: yolo11n.pt          # COCO 사전학습 가중치
+data: data_fold0.yaml      # 조합 단위 5-Fold 중 fold 0
+imgsz: 640
+epochs: 100
+patience: 30               # val 개선이 30 에포크 없으면 조기 종료
+batch: 16
+optimizer: auto
+workers: 4

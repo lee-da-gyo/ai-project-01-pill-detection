@@ -1,0 +1,13 @@
+# e3_flipud – E0에서 한 가지만 바꾼 실험
+# 비교 기준: e0_baseline
+name: e3_flipud
+description: "YOLO11s, 640px, 상하 뒤집기 추가 (위에서 찍은 알약은 방향이 자유롭다)"
+model: yolo11s.pt          # COCO 사전학습 가중치
+data: data_fold0.yaml      # 조합 단위 5-Fold 중 fold 0
+imgsz: 640
+epochs: 100
+patience: 30               # val 개선이 30 에포크 없으면 조기 종료
+batch: 16
+optimizer: auto
+workers: 4
+flipud: 0.5

@@ -1,0 +1,14 @@
+# Kaggle 제출 파일 형식
+# ⚠️ 대회 페이지의 sample_submission.csv로 확인 전 (가정). 확인 후 아래 값만 고친다.
+columns:
+  annotation_id: annotation_id
+  image_id: image_id
+  category_id: category_id   # 원래 약 코드 (예: 1900), yolo_id 아님
+  bbox_x: bbox_x             # 왼쪽 위 x (픽셀)
+  bbox_y: bbox_y             # 왼쪽 위 y (픽셀)
+  bbox_w: bbox_w
+  bbox_h: bbox_h
+  score: score
+order: [annotation_id, image_id, category_id, bbox_x, bbox_y, bbox_w, bbox_h, score]
+round: 2
+verified: false

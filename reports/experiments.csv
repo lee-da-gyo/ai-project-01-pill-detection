@@ -1,0 +1,2 @@
+﻿id,name,date,description,model,imgsz,fold,epochs_run,best_epoch,precision,recall,yolo_mAP50,yolo_mAP50_95,coco_mAP50,coco_mAP50_95,train_min,kaggle_public,seen_mAP50_95
+E0,e0_baseline,2026-10-27,"YOLO11s, 640px, Ultralytics 기본 증강, fold 0",yolo11s.pt,640,0,100,87,0.8663,0.8218,0.8431,0.8338,0.8471,0.8354,5.7,,0.9846

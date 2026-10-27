@@ -73,3 +73,45 @@ def test_folds_keep_combo_together():
     folds = make_folds(pd.DataFrame(rows), n_folds=5, seed=0)
     assert folds.groupby("combo")["fold"].nunique().max() == 1
     assert set(folds["fold"]) == set(range(5))
+
+
+# ---------- 후처리 · 평가 · 제출 ----------
+from pilldet.evaluate import coco_map  # noqa: E402
+from pilldet.predict import limit_per_image  # noqa: E402
+from pilldet.submission import to_submission, validate_submission  # noqa: E402
+
+SPEC = {"columns": {k: k for k in ["annotation_id", "image_id", "category_id", "bbox_x", "bbox_y", "bbox_w", "bbox_h", "score"]},
+        "order": ["annotation_id", "image_id", "category_id", "bbox_x", "bbox_y", "bbox_w", "bbox_h", "score"], "round": 2}
+
+
+def _gt():
+    return pd.DataFrame({"file_name": ["a.png", "a.png", "b.png"], "category_id": [1, 2, 1],
+                         "x": [10, 300, 50], "y": [10, 300, 60], "w": [100, 120, 90], "h": [100, 110, 80],
+                         "img_w": 976, "img_h": 1280})
+
+
+def test_coco_map_perfect_and_wrong_class():
+    gt = _gt()
+    assert coco_map(gt.assign(score=1.0), gt)["mAP50_95"] == pytest.approx(1.0)
+    wrong = gt.assign(score=1.0, category_id=[2, 1, 2])  # 위치는 맞고 클래스만 틀림
+    assert coco_map(wrong, gt)["mAP50"] == pytest.approx(0.0)
+
+
+def test_limit_per_image_keeps_top_unique():
+    pred = pd.DataFrame({"file_name": ["a.png"] * 6, "category_id": [1, 1, 2, 3, 4, 5],
+                         "x": 0, "y": 0, "w": 10, "h": 10, "score": [0.9, 0.8, 0.7, 0.6, 0.5, 0.4]})
+    out = limit_per_image(pred, max_per_image=4)
+    assert len(out) == 4 and out["category_id"].is_unique
+    assert out["score"].tolist() == [0.9, 0.7, 0.6, 0.5]
+
+
+def test_submission_format_and_validation():
+    pred = pd.DataFrame({"file_name": ["2.png", "1.png"], "category_id": [1900, 3351],
+                         "x": [1.234, 5.0], "y": [2.0, 6.0], "w": [10.0, 20.0], "h": [11.0, 21.0], "score": [0.5, 0.9]})
+    sub = to_submission(pred, SPEC)
+    assert list(sub.columns) == SPEC["order"]
+    assert sub["image_id"].tolist() == [1, 2] and sub["annotation_id"].tolist() == [1, 2]
+    info = validate_submission(sub, SPEC, test_ids={1, 2, 3}, valid_categories={1900, 3351})
+    assert info["rows"] == 2
+    with pytest.raises(AssertionError):
+        validate_submission(sub, SPEC, test_ids={1}, valid_categories={1900, 3351})

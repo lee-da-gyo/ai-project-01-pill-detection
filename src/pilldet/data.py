@@ -73,6 +73,18 @@ def load_annotations(ann_dir: Path) -> pd.DataFrame:
     return df
 
 
+def load_clean_annotations(coco_json: Path) -> pd.DataFrame:
+    """정제된 COCO 라벨(reports/annotations_clean.json) → 박스 테이블. 평가의 정답으로 쓴다."""
+    with open(coco_json, encoding="utf-8") as f:
+        coco = json.load(f)
+    imgs = {i["id"]: i for i in coco["images"]}
+    return pd.DataFrame([{
+        "file_name": imgs[a["image_id"]]["file_name"], "category_id": a["category_id"],
+        "x": a["bbox"][0], "y": a["bbox"][1], "w": a["bbox"][2], "h": a["bbox"][3],
+        "img_w": imgs[a["image_id"]]["width"], "img_h": imgs[a["image_id"]]["height"],
+    } for a in coco["annotations"]])
+
+
 def class_names(df: pd.DataFrame) -> pd.DataFrame:
     """category_id → 한글·영문 약품명 표."""
     return df.drop_duplicates("category_id").set_index("category_id")[["dl_name", "dl_name_en"]].sort_index()

@@ -76,10 +76,10 @@
 </td>
 <td width="33%" align="center">
 
-### 📈 진행 중
-**Kaggle 점수**
+### 🎯 0.985
+**학습한 약의 검출 정확도**
 
-<sub>베이스라인 → 개선 실험<br>점수 변화와 원인을 함께 기록</sub>
+<sub>베이스라인 val mAP50-95 (학습에 있는 약 기준)<br>Kaggle 점수는 제출 후 기록</sub>
 
 </td>
 </tr>
@@ -107,7 +107,6 @@ flowchart TB
 
     style C fill:#FFF4CC,stroke:#E0B000
     style D fill:#FFF4CC,stroke:#E0B000
-    style F fill:#EEEEEE,stroke:#999999,stroke-dasharray: 4 4
     style G fill:#EEEEEE,stroke:#999999,stroke-dasharray: 4 4
 ```
 
@@ -205,11 +204,39 @@ flowchart TB
 
 ## 7. 모델링 및 실험
 
-> 🚧 진행 중 – 실험할 때마다 업데이트한다. **한 번에 한 가지만 바꿔** 점수 변화의 원인을 설명할 수 있게 한다.
+📓 [`notebooks/03_baseline.ipynb`](notebooks/03_baseline.ipynb) · 📄 [`reports/experiments.csv`](reports/experiments.csv) · ⚙️ [`configs/`](configs)
 
-| # | 날짜 | 변경 사항 | val mAP@50 | val mAP@50-95 | Kaggle | 메모 |
-|:---:|:---:|:---|:---:|:---:|:---:|:---|
-| 0 | – | 베이스라인 (예정) | – | – | – | |
+> 🚧 진행 중 – 실험할 때마다 업데이트한다. **한 번에 한 가지만 바꿔** 점수 변화의 원인을 설명할 수 있게 한다.
+> 실험 하나 = 설정 파일 하나. `python scripts/run_experiment.py --config configs/<실험>.yaml` 한 줄로 학습 → 평가 → 제출 파일 → 기록까지 실행된다.
+
+| ID | 변경 사항 | val mAP50 | val mAP50-95 | 학습한 약만<br>mAP50-95 | Kaggle | 학습 시간 |
+|:---:|:---|:---:|:---:|:---:|:---:|:---:|
+| E0 | 베이스라인: YOLO11s · 640px · 기본 증강 | 0.847 | 0.835 | **0.985** | – | 5.7분 |
+
+<sub>val = 조합 단위 fold 0 (47장). "학습한 약만"은 학습 fold에 있는 클래스로만 평가한 값이다. 최종 모델은 전체 데이터로 학습해 56종을 모두 보므로, 실험 비교에는 이 값을 함께 본다.</sub>
+
+### 베이스라인에서 얻은 핵심 발견
+<table>
+<tr>
+<td width="50%"><img src="reports/figures/e0_predictions_val.png" alt="정답 vs 예측"></td>
+<td width="50%"><img src="reports/figures/e0_per_class_ap.png" alt="클래스별 AP"></td>
+</tr>
+<tr>
+<td align="center"><sub>위: 정답 · 아래: 예측. 위치는 모두 맞고, 처음 보는 약을 비슷한 약으로 예측</sub></td>
+<td align="center"><sub>빨강 = 학습에 없는 약. 점수 손실의 전부가 여기서 나온다</sub></td>
+</tr>
+</table>
+
+| 발견 | 근거 | 다음 결정 |
+|:---|:---|:---|
+| 오류는 **위치가 아니라 처음 보는 약의 이름** | 학습한 약 AP 0.985 / 처음 보는 약 5종 AP 0.000 | 비교 지표에 "학습한 약만 mAP" 추가 |
+| 처음 보는 약을 **비슷한 약으로 확신** | 다보타민큐정 → 트루비타정 (0.96) | 희귀 약 보강: **Copy-Paste 합성** (E3) |
+| 이미지당 상위 4개 제한은 **오히려 손해** | mAP50-95 0.835 → 0.822 | 가설 기각. 제출에는 모든 예측 유지 |
+| 두 평가 방식이 일치 | Ultralytics 0.834 vs 직접 구현 COCO 0.835 | 직접 구현한 평가로 앙상블·2단계 모델까지 같은 기준 비교 |
+
+### 희귀 약 보강: Copy-Paste 합성
+<img src="reports/figures/copy_paste_samples.png" width="100%" alt="Copy-Paste 합성">
+<p align="center"><sub>노란 박스 = 다른 사진에서 오려 붙인 알약. 희귀할수록 자주 뽑고(확률 ∝ 1/√빈도), 90° 회전·뒤집기·크기 ±10%. fold별로 학습 이미지만 사용해 누수 없음</sub></p>
 
 <br>
 
@@ -225,15 +252,23 @@ ai-project-01-pill-detection/
 │   ├── clean.py                #   라벨 감사 · 규칙 기반 수정 · 무결성 검사
 │   ├── split.py                #   조합 단위 Stratified Group K-Fold
 │   ├── export.py               #   YOLO / COCO 내보내기 · 왕복 검증
+│   ├── augment.py              #   Copy-Paste 합성 (희귀 약 보강)
+│   ├── train.py                #   설정 파일 기반 YOLO 학습
+│   ├── predict.py              #   예측 · 도메인 후처리
+│   ├── evaluate.py             #   COCO mAP · 클래스별 AP
+│   ├── submission.py           #   Kaggle 제출 파일 생성 · 형식 검사
 │   └── viz.py                  #   한글 폰트, 박스 시각화
 ├── scripts/
-│   └── prepare_data.py         # ⚙️ 데이터 준비 전체를 한 번에 실행 (CLI)
+│   ├── prepare_data.py         # ⚙️ 데이터 준비 전체를 한 번에 실행
+│   ├── make_copy_paste.py      # ⚙️ fold별 Copy-Paste 합성 데이터 생성
+│   └── run_experiment.py       # ⚙️ 학습 → 평가 → 제출 파일 → 실험 기록
 ├── tests/
-│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (11개)
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (14개)
 ├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
 │   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
-│   └── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
-├── configs/                    # 학습 설정
+│   ├── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
+│   └── 03_baseline.ipynb       #   베이스라인 학습 결과 · 오류 분석 · 첫 제출
+├── configs/                    # 실험 설정 (실험 하나 = 파일 하나) · 제출 형식
 ├── reports/
 │   ├── figures/                # 분석 그래프 (보고서용)
 │   ├── logs/                   # 스크립트 · 테스트 실행 로그
@@ -268,6 +303,8 @@ ai-project-01-pill-detection/
 ```bash
 pip install -r requirements.txt
 python scripts/prepare_data.py      # 데이터 준비 전체 실행 (약 10초)
+python scripts/make_copy_paste.py --fold 0 --n 400                 # Copy-Paste 합성 (약 45초)
+python scripts/run_experiment.py --config configs/e0_baseline.yaml # 실험 1회 (RTX 3060 기준 약 6분)
 python -m pytest tests -v           # 단위 테스트
 ```
 
