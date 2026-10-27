@@ -1,0 +1,57 @@
+﻿yolo_id,category_id,dl_name,dl_name_en,n_boxes,n_images,n_combos
+0,1900,보령부스파정 5mg,Buspar Tab. 5mg Boryung,15,15,5
+1,2483,뮤테란캡슐 100mg,Muteran Cap. 100mg,9,9,3
+2,3351,일양하이트린정 2mg,Hytrin Tab. 2mg Ilyang,157,157,89
+3,3483,기넥신에프정(은행엽엑스)(수출용),Ginexin-F Tab.,45,45,15
+4,3544,무코스타정(레바미피드)(비매품),Mucosta Tab.,6,6,2
+5,3743,알드린정,Aldrin Tab.,3,3,1
+6,3832,뉴로메드정(옥시라세탐),Neuromed Tab. 800mg,20,20,10
+7,4543,에어탈정(아세클로페낙),Airtal Tab.,6,6,2
+8,12081,리렉스펜정 300mg/PTP,Lirexpen Tab.,3,3,1
+9,12247,아빌리파이정 10mg,Abilify Tab.10mg,3,3,1
+10,12778,다보타민큐정 10mg/병,Dabotamin Q Tab.,6,6,2
+11,13395,써스펜8시간이알서방정 650mg,Suspen 8 hours ER Tab.,3,3,1
+12,13900,에빅사정(메만틴염산염)(비매품),Ebixa Tab.,15,15,7
+13,16232,리피토정 20mg,Lipitor Tab. 20mg,21,21,11
+14,16262,크레스토정 20mg,Crestor Tab. 20mg,23,23,11
+15,16548,가바토파정 100mg,Gabatopa Tab. 100mg,18,18,6
+16,16551,동아가바펜틴정 800mg,Gabapentin Tab. 800mg Dong-A,3,3,1
+17,16688,오마코연질캡슐(오메가-3-산에틸에스테르90),Omacor Soft Cap.,8,8,7
+18,18147,리리카캡슐 150mg,Lyrica Cap. 150mg,15,15,9
+19,18357,종근당글리아티린연질캡슐(콜린알포세레이트) ,Chongkundang Gliatirin Soft Cap.,13,13,9
+20,19232,콜리네이트연질캡슐 400mg,Cholinate Soft Cap.,17,17,9
+21,19552,트루비타정 60mg/병,Truvita Tab.,3,3,1
+22,19607,스토가정 10mg,Stogar Tab. 10mg,6,6,2
+23,19861,노바스크정 5mg,Norvasc Tab. 5mg,6,6,2
+24,20014,마도파정,Madopar Tab.,17,17,9
+25,20238,플라빅스정 75mg,Plavix Tab. 75mg,20,20,11
+26,20877,엑스포지정 5/160mg,Exforge Tab. 5/160mg,12,12,4
+27,21325,아토르바정 10mg,Atorva Tab. 10mg,22,22,10
+28,21771,라비에트정 20mg,Rabiet Tab.20mg,3,3,1
+29,22074,리피로우정 20mg,Lipilow Tab. 20mg,16,16,9
+30,22347,자누비아정 50mg,Januvia Tab. 50mg,9,9,3
+31,22362,맥시부펜이알정 300mg,Maxibupen Er Tab.,3,3,1
+32,24850,놀텍정 10mg,Noltec Tab. ,3,3,1
+33,25367,자누메트정 50/850mg,JANUMET TAB 50/850,12,12,4
+34,25438,큐시드정 31.5mg/PTP,Q-Cid Tab.,6,6,2
+35,25469,아모잘탄정 5/100mg,Amosartan Tab 5/100mg,12,12,4
+36,27733,트윈스타정 40/5mg,Twynsta Tab. 40/5mg,12,12,4
+37,27777,카나브정 60mg,Kanarb Tab. 60mg,3,3,1
+38,27926,울트라셋이알서방정,Ultracet ER Tab.,3,3,1
+39,27993,졸로푸트정 100mg,Zoloft Tab. 100mg,3,3,1
+40,28763,트라젠타정(리나글립틴),Trajenta Tab.,9,9,3
+41,29345,비모보정 500/20mg,Vimovo Tab. 500/20mg,6,6,2
+42,29451,레일라정,LAYLA TAB.,3,3,1
+43,29667,리바로정 4mg,Livalo Tab. 4mg,18,18,9
+44,30308,트라젠타듀오정 2.5/850mg,Trajenta-duo Tab. 2.5/850mg,9,9,3
+45,31863,아질렉트정(라사길린메실산염),Azilect Tab.,12,12,9
+46,31885,자누메트엑스알서방정 100/1000mg,Janumet XR Tab. 100/1000mg,3,3,1
+47,32310,글리아타민연질캡슐,,15,15,9
+48,33009,신바로정,Shinbaro Tab.,3,3,1
+49,33208,에스원엠프정 20mg,Eswonamp Tab. 20mg,3,3,1
+50,33880,글리틴정(콜린알포세레이트),Glitin Tab.,17,17,9
+51,34597,제미메트서방정 50/1000mg,Zemimet SR Tab. 50/1000mg,3,3,1
+52,35206,아토젯정 10/40mg,Atozet Tab. 10/40mg,37,37,16
+53,36637,로수젯정10/5밀리그램,Rosuzet Tab. 10/5mg,19,19,10
+54,38162,로수바미브정 10/20mg,Rosuvamibe Tab. 10/20mg,18,18,10
+55,41768,카발린캡슐 25mg,Kabalin Cap. 25mg,16,16,9
