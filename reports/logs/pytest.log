@@ -19,4 +19,4 @@ tests/test_core.py::test_submission_format_and_validation PASSED         [ 87%]
 tests/test_core.py::test_fold_of_parses_copy_paste_and_full PASSED       [ 93%]
 tests/test_core.py::test_combine_top_k_and_scores PASSED                 [100%]
 
-============================= 16 passed in 6.44s ==============================
+============================= 16 passed in 7.27s ==============================

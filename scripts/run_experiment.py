@@ -66,9 +66,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", type=Path, required=True)
     ap.add_argument("--skip-train", action="store_true", help="이미 학습한 가중치로 평가·제출만 다시 한다")
+    ap.add_argument("--fold", type=int, default=None,
+                    help="설정 파일의 fold를 바꿔 실행한다 (5-Fold 교차검증용). 실험 이름에 _f<k>가 붙는다")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
+    if args.fold is not None:
+        assert fold_of(cfg["data"]) is not None, "전체 학습 설정에는 --fold를 쓸 수 없다"
+        cfg["data"] = re.sub(r"data_fold\d+", f"data_fold{args.fold}", cfg["data"])
+        cfg["name"] = f"{cfg['name']}_f{args.fold}"
     name = cfg["name"]
     P = get_paths(REPO_DIR)
     runs_dir = REPO_DIR / "runs"

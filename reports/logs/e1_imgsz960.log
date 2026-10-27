@@ -1,0 +1,13 @@
+2026-10-27 16:35:39 | 실험 e1_imgsz960: YOLO11s, 960px (E0 대비 해상도만 변경)
+2026-10-27 16:35:39 | 설정: {'name': 'e1_imgsz960', 'description': 'YOLO11s, 960px (E0 대비 해상도만 변경)', 'model': 'yolo11s.pt', 'data': 'data_fold0.yaml', 'imgsz': 960, 'epochs': 100, 'patience': 30, 'batch': 8, 'optimizer': 'auto', 'workers': 4}
+2026-10-27 16:35:39 | [1/4] 학습 완료 (0.0분): 최고 에포크 90 / 100 | P 0.863 R 0.808 mAP50 0.8427 mAP50-95 0.8333
+2026-10-27 16:35:48 | [2/4] fold 0 COCO 평가: mAP50-95 0.8105 | mAP50 0.8237 | mAP75 0.8237 | 학습에 있는 클래스만 mAP50-95 0.9552
+2026-10-27 16:35:48 |       AP50-95 하위 5개 클래스:
+              dl_name  n_boxes  AP50_95
+                 알드린정        3      0.0
+    써스펜8시간이알서방정 650mg        3      0.0
+        다보타민큐정 10mg/병        6      0.0
+      리렉스펜정 300mg/PTP        3      0.0
+자누메트엑스알서방정 100/1000mg        3      0.0
+2026-10-27 16:36:38 | [3/4] 제출 파일: submissions/e1_imgsz960.csv {'rows': 5780, 'images_with_pred': 842, 'test_images': 842, 'rows_per_image': 6.86}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-27 16:36:38 | [4/4] 실험 기록 추가: reports/experiments.csv (2개 실험)

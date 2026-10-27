@@ -1,0 +1,13 @@
+2026-10-27 17:45:23 | 실험 e3_hsv: YOLO11s, 640px, 색 증강 강화 (Test가 더 어둡고 대비가 큼)
+2026-10-27 17:45:23 | 설정: {'name': 'e3_hsv', 'description': 'YOLO11s, 640px, 색 증강 강화 (Test가 더 어둡고 대비가 큼)', 'model': 'yolo11s.pt', 'data': 'data_fold0.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4, 'hsv_v': 0.6}
+2026-10-27 17:50:59 | [1/4] 학습 완료 (5.6분): 최고 에포크 78 / 100 | P 0.922 R 0.792 mAP50 0.8431 mAP50-95 0.8333
+2026-10-27 17:51:01 | [2/4] fold 0 COCO 평가: mAP50-95 0.8369 | mAP50 0.8472 | mAP75 0.8472 | 학습에 있는 클래스만 mAP50-95 0.9863
+2026-10-27 17:51:01 |       AP50-95 하위 5개 클래스:
+              dl_name  n_boxes  AP50_95
+                 알드린정        3      0.0
+    써스펜8시간이알서방정 650mg        3      0.0
+        다보타민큐정 10mg/병        6      0.0
+      리렉스펜정 300mg/PTP        3      0.0
+자누메트엑스알서방정 100/1000mg        3      0.0
+2026-10-27 17:51:19 | [3/4] 제출 파일: submissions/e3_hsv.csv {'rows': 8309, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 9.87, 'max_per_image': 28}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-27 17:51:19 | [4/4] 실험 기록 추가: reports/experiments.csv (8개 실험)

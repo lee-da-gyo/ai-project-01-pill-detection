@@ -1,0 +1,13 @@
+2026-10-27 17:39:44 | 실험 e3_flipud: YOLO11s, 640px, 상하 뒤집기 추가 (위에서 찍은 알약은 방향이 자유롭다)
+2026-10-27 17:39:44 | 설정: {'name': 'e3_flipud', 'description': 'YOLO11s, 640px, 상하 뒤집기 추가 (위에서 찍은 알약은 방향이 자유롭다)', 'model': 'yolo11s.pt', 'data': 'data_fold0.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4, 'flipud': 0.5}
+2026-10-27 17:45:01 | [1/4] 학습 완료 (5.3분): 최고 에포크 59 / 89 | P 0.895 R 0.823 mAP50 0.8433 mAP50-95 0.8277
+2026-10-27 17:45:02 | [2/4] fold 0 COCO 평가: mAP50-95 0.8327 | mAP50 0.8472 | mAP75 0.8472 | 학습에 있는 클래스만 mAP50-95 0.9814
+2026-10-27 17:45:02 |       AP50-95 하위 5개 클래스:
+              dl_name  n_boxes  AP50_95
+                 알드린정        3      0.0
+    써스펜8시간이알서방정 650mg        3      0.0
+        다보타민큐정 10mg/병        6      0.0
+      리렉스펜정 300mg/PTP        3      0.0
+자누메트엑스알서방정 100/1000mg        3      0.0
+2026-10-27 17:45:21 | [3/4] 제출 파일: submissions/e3_flipud.csv {'rows': 10535, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 12.51, 'max_per_image': 31}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-27 17:45:21 | [4/4] 실험 기록 추가: reports/experiments.csv (7개 실험)
