@@ -1,0 +1,2 @@
+2026-10-27 19:46:58 | 실험 final_yolo11s: YOLO11s, 640px, 전체 데이터, 50 에포크 (5-Fold best epoch 중앙값)
+2026-10-27 19:46:58 | 설정: {'name': 'final_yolo11s', 'description': 'YOLO11s, 640px, 전체 데이터, 50 에포크 (5-Fold best epoch 중앙값)', 'model': 'yolo11s.pt', 'data': 'data_full.yaml', 'imgsz': 640, 'epochs': 50, 'patience': 0, 'batch': 16, 'optimizer': 'auto', 'workers': 4}

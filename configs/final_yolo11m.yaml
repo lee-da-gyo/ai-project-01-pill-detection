@@ -1,0 +1,12 @@
+# final_yolo11m – 제출용: 232장 전체로 학습 (검증 없음 → last.pt 사용)
+# 에포크 = 5-Fold best epoch 중앙값 (46/61/83/94/94 → 83). 그 밖의 설정은 e2_yolo11m과 같다.
+name: final_yolo11m
+description: YOLO11m, 640px, 전체 데이터, 83 에포크 (5-Fold best epoch 중앙값)
+model: yolo11m.pt
+data: data_full.yaml
+imgsz: 640
+epochs: 83
+patience: 0
+batch: 16
+optimizer: auto
+workers: 4

@@ -1,0 +1,13 @@
+2026-10-27 19:04:36 | 실험 e2_yolo11m_f1: YOLO11m, 640px (E0 대비 모델 크기만 변경)
+2026-10-27 19:04:36 | 설정: {'name': 'e2_yolo11m_f1', 'description': 'YOLO11m, 640px (E0 대비 모델 크기만 변경)', 'model': 'yolo11m.pt', 'data': 'data_fold1.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
+2026-10-27 19:14:30 | [1/4] 학습 완료 (9.9분): 최고 에포크 61 / 91 | P 0.863 R 0.884 mAP50 0.8988 mAP50-95 0.8902
+2026-10-27 19:14:32 | [2/4] fold 1 COCO 평가: mAP50-95 0.8821 | mAP50 0.8921 | mAP75 0.8921 | 학습에 있는 클래스만 mAP50-95 0.9703
+2026-10-27 19:14:32 |       AP50-95 하위 5개 클래스:
+          dl_name  n_boxes  AP50_95
+             신바로정        3 0.000000
+제미메트서방정 50/1000mg        3 0.000000
+      졸로푸트정 100mg        3 0.000000
+        스토가정 10mg        6 0.663366
+      가바토파정 100mg       18 0.777228
+2026-10-27 19:15:00 | [3/4] 제출 파일: submissions/e2_yolo11m_f1.csv {'rows': 6678, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 7.93, 'max_per_image': 20}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-27 19:15:00 | [4/4] 실험 기록 추가: reports/experiments.csv (15개 실험)

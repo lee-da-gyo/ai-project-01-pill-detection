@@ -1,0 +1,13 @@
+2026-10-27 18:55:02 | 실험 e0_baseline_f3: YOLO11s, 640px, Ultralytics 기본 증강, fold 3
+2026-10-27 18:55:02 | 설정: {'name': 'e0_baseline_f3', 'description': 'YOLO11s, 640px, Ultralytics 기본 증강, fold 3', 'model': 'yolo11s.pt', 'data': 'data_fold3.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
+2026-10-27 18:59:18 | [1/4] 학습 완료 (4.3분): 최고 에포크 41 / 71 | P 0.978 R 0.689 mAP50 0.7912 mAP50-95 0.7760
+2026-10-27 18:59:19 | [2/4] fold 3 COCO 평가: mAP50-95 0.7400 | mAP50 0.7561 | mAP75 0.7561 | 학습에 있는 클래스만 mAP50-95 0.9471
+2026-10-27 18:59:19 |       AP50-95 하위 5개 클래스:
+      dl_name  n_boxes  AP50_95
+동아가바펜틴정 800mg        3      0.0
+    울트라셋이알서방정        3      0.0
+  에스원엠프정 20mg        3      0.0
+비모보정 500/20mg        6      0.0
+    카나브정 60mg        3      0.0
+2026-10-27 18:59:37 | [3/4] 제출 파일: submissions/e0_baseline_f3.csv {'rows': 13483, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 16.01, 'max_per_image': 46}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-27 18:59:37 | [4/4] 실험 기록 추가: reports/experiments.csv (13개 실험)
