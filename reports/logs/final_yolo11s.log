@@ -1,2 +1,5 @@
 2026-10-27 19:46:58 | 실험 final_yolo11s: YOLO11s, 640px, 전체 데이터, 50 에포크 (5-Fold best epoch 중앙값)
 2026-10-27 19:46:58 | 설정: {'name': 'final_yolo11s', 'description': 'YOLO11s, 640px, 전체 데이터, 50 에포크 (5-Fold best epoch 중앙값)', 'model': 'yolo11s.pt', 'data': 'data_full.yaml', 'imgsz': 640, 'epochs': 50, 'patience': 0, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
+2026-10-27 19:50:43 | [1/4] 전체 데이터 학습 완료 (3.7분): 고정 50 에포크, last.pt 사용 (검증 없음)
+2026-10-27 19:51:10 | [3/4] 제출 파일: submissions/final_yolo11s.csv {'rows': 11204, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 13.31, 'max_per_image': 27}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-27 19:51:10 | [4/4] 실험 기록 추가: reports/experiments.csv (19개 실험)

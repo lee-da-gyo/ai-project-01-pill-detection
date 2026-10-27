@@ -1,0 +1,2 @@
+2026-10-27 20:49:40 | final_yolo11m: last.pt, imgsz 640, TTA False → 예측 5,134개
+2026-10-27 20:49:40 | 제출 파일 submissions\final_yolo11m_single.csv: {'rows': 5134, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 6.1, 'max_per_image': 14}  ⚠️ 제출 형식 미확인
