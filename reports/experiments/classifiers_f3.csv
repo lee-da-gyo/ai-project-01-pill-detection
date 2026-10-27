@@ -1,0 +1,4 @@
+arch,params_M,train_min,epoch,accuracy,macro_precision,macro_recall,macro_f1,log_loss
+efficientnet_b0,4.1,2.0,13,1.0,1.0,1.0,1.0,0.1124
+resnet50,23.6,2.0,8,1.0,1.0,1.0,1.0,0.1299
+vgg16,134.5,3.6,8,1.0,1.0,1.0,1.0,0.1128

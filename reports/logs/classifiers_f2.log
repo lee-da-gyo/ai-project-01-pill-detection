@@ -1,0 +1,27 @@
+2026-10-27 18:18:59 | fold 2: 학습 crop 621개 (55종) / 검증 crop 147개 (28종, 학습에 있는 약만)
+2026-10-27 18:19:02 | == efficientnet_b0 학습 시작
+2026-10-27 18:19:26 |   [efficientnet_b0] epoch  1/20 loss 3.995 | acc 0.204 P 0.150 R 0.091 F1 0.092 logloss 3.819
+2026-10-27 18:19:45 |   [efficientnet_b0] epoch  5/20 loss 1.043 | acc 0.966 P 0.979 R 0.973 F1 0.974 logloss 0.309
+2026-10-27 18:20:08 |   [efficientnet_b0] epoch 10/20 loss 0.803 | acc 0.966 P 0.979 R 0.973 F1 0.974 logloss 0.226
+2026-10-27 18:20:31 |   [efficientnet_b0] epoch 15/20 loss 0.789 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.231
+2026-10-27 18:20:54 |   [efficientnet_b0] epoch 20/20 loss 0.772 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.228
+2026-10-27 18:20:54 | == efficientnet_b0 최고: epoch 17 acc 0.9796 P 0.9891 R 0.9829 F1 0.9856 logloss 0.2190 (4.1M 파라미터, 1.9분)
+2026-10-27 18:20:54 | == resnet50 학습 시작
+2026-10-27 18:21:00 |   [resnet50] epoch  1/20 loss 3.969 | acc 0.327 P 0.193 R 0.158 F1 0.160 logloss 3.777
+2026-10-27 18:21:23 |   [resnet50] epoch  5/20 loss 0.847 | acc 0.973 P 0.983 R 0.978 F1 0.980 logloss 0.338
+2026-10-27 18:21:51 |   [resnet50] epoch 10/20 loss 0.760 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.265
+2026-10-27 18:22:19 |   [resnet50] epoch 15/20 loss 0.749 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.245
+2026-10-27 18:22:48 |   [resnet50] epoch 20/20 loss 0.735 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.257
+2026-10-27 18:22:48 | == resnet50 최고: epoch 16 acc 0.9796 P 0.9891 R 0.9829 F1 0.9856 logloss 0.2420 (23.6M 파라미터, 1.9분)
+2026-10-27 18:22:48 | == vgg16 학습 시작
+2026-10-27 18:22:59 |   [vgg16] epoch  1/20 loss 3.756 | acc 0.558 P 0.291 R 0.383 F1 0.316 logloss 2.133
+2026-10-27 18:23:43 |   [vgg16] epoch  5/20 loss 1.016 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.261
+2026-10-27 18:24:35 |   [vgg16] epoch 10/20 loss 0.823 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.228
+2026-10-27 18:25:27 |   [vgg16] epoch 15/20 loss 0.790 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.216
+2026-10-27 18:26:19 |   [vgg16] epoch 20/20 loss 0.765 | acc 0.980 P 0.989 R 0.983 F1 0.986 logloss 0.221
+2026-10-27 18:26:19 | == vgg16 최고: epoch 15 acc 0.9796 P 0.9891 R 0.9829 F1 0.9856 logloss 0.2163 (134.5M 파라미터, 3.5분)
+2026-10-27 18:26:19 | 
+           arch  params_M  train_min  epoch  accuracy  macro_precision  macro_recall  macro_f1  log_loss
+efficientnet_b0       4.1        1.9     17    0.9796           0.9891        0.9829    0.9856    0.2190
+       resnet50      23.6        1.9     16    0.9796           0.9891        0.9829    0.9856    0.2420
+          vgg16     134.5        3.5     15    0.9796           0.9891        0.9829    0.9856    0.2163

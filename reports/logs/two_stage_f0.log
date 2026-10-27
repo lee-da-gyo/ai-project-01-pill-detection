@@ -1,0 +1,23 @@
+2026-10-27 18:41:51 | 오류 분해 – 위치만(클래스 무시) mAP50-95 0.9615 / mAP50 0.9874
+2026-10-27 18:41:59 | 2단계: YOLO + efficientnet_b0: {'method': '2단계: YOLO + efficientnet_b0', 'mAP50_95': 0.8315, 'mAP50': 0.8431, 'seen_mAP50_95': 0.98}
+2026-10-27 18:41:59 | 2단계: YOLO + efficientnet_b0 (YOLO 클래스 비중 0.3): {'method': '2단계: YOLO + efficientnet_b0 (YOLO 클래스 비중 0.3)', 'mAP50_95': 0.8315, 'mAP50': 0.8431, 'seen_mAP50_95': 0.98}
+2026-10-27 18:41:59 | 2단계: YOLO + efficientnet_b0 (YOLO 클래스 비중 0.5): {'method': '2단계: YOLO + efficientnet_b0 (YOLO 클래스 비중 0.5)', 'mAP50_95': 0.8315, 'mAP50': 0.8431, 'seen_mAP50_95': 0.98}
+2026-10-27 18:42:01 | 2단계: YOLO + resnet50: {'method': '2단계: YOLO + resnet50', 'mAP50_95': 0.8319, 'mAP50': 0.843, 'seen_mAP50_95': 0.9805}
+2026-10-27 18:42:01 | 2단계: YOLO + resnet50 (YOLO 클래스 비중 0.3): {'method': '2단계: YOLO + resnet50 (YOLO 클래스 비중 0.3)', 'mAP50_95': 0.8336, 'mAP50': 0.8446, 'seen_mAP50_95': 0.9824}
+2026-10-27 18:42:01 | 2단계: YOLO + resnet50 (YOLO 클래스 비중 0.5): {'method': '2단계: YOLO + resnet50 (YOLO 클래스 비중 0.5)', 'mAP50_95': 0.8337, 'mAP50': 0.8446, 'seen_mAP50_95': 0.9826}
+2026-10-27 18:42:04 | 2단계: YOLO + vgg16: {'method': '2단계: YOLO + vgg16', 'mAP50_95': 0.833, 'mAP50': 0.844, 'seen_mAP50_95': 0.9818}
+2026-10-27 18:42:04 | 2단계: YOLO + vgg16 (YOLO 클래스 비중 0.3): {'method': '2단계: YOLO + vgg16 (YOLO 클래스 비중 0.3)', 'mAP50_95': 0.833, 'mAP50': 0.844, 'seen_mAP50_95': 0.9818}
+2026-10-27 18:42:05 | 2단계: YOLO + vgg16 (YOLO 클래스 비중 0.5): {'method': '2단계: YOLO + vgg16 (YOLO 클래스 비중 0.5)', 'mAP50_95': 0.8334, 'mAP50': 0.8441, 'seen_mAP50_95': 0.9822}
+2026-10-27 18:42:05 | 
+                                       method  mAP50_95  mAP50  seen_mAP50_95
+                        YOLO 단독 (e0_baseline)    0.8354 0.8471         0.9846
+                          참고: 위치만 평가 (클래스 무시)    0.9615 0.9874            NaN
+                  2단계: YOLO + efficientnet_b0    0.8315 0.8431         0.9800
+2단계: YOLO + efficientnet_b0 (YOLO 클래스 비중 0.3)    0.8315 0.8431         0.9800
+2단계: YOLO + efficientnet_b0 (YOLO 클래스 비중 0.5)    0.8315 0.8431         0.9800
+                         2단계: YOLO + resnet50    0.8319 0.8430         0.9805
+       2단계: YOLO + resnet50 (YOLO 클래스 비중 0.3)    0.8336 0.8446         0.9824
+       2단계: YOLO + resnet50 (YOLO 클래스 비중 0.5)    0.8337 0.8446         0.9826
+                            2단계: YOLO + vgg16    0.8330 0.8440         0.9818
+          2단계: YOLO + vgg16 (YOLO 클래스 비중 0.3)    0.8330 0.8440         0.9818
+          2단계: YOLO + vgg16 (YOLO 클래스 비중 0.5)    0.8334 0.8441         0.9822

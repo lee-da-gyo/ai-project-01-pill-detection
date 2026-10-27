@@ -1,0 +1,2 @@
+2026-10-27 18:42:51 | 실험 e0_baseline_f1: YOLO11s, 640px, Ultralytics 기본 증강, fold 0
+2026-10-27 18:42:51 | 설정: {'name': 'e0_baseline_f1', 'description': 'YOLO11s, 640px, Ultralytics 기본 증강, fold 0', 'model': 'yolo11s.pt', 'data': 'data_fold1.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
