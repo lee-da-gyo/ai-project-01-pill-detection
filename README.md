@@ -282,7 +282,7 @@ flowchart TB
 |:---|:---:|:---:|:---:|:---:|:---:|
 | YOLO11s | 0.835 / 0.889 / 0.920 / 0.740 / 0.881 | 0.853 ± 0.070 | 0.621 | 0.941 | 87 / 41 / 75 / 41 / 50 |
 | YOLO11m | 0.839 / 0.882 / 0.924 / 0.745 / 0.883 | 0.855 ± 0.068 | 0.619 | 0.936 | 94 / 61 / 94 / 46 / 83 |
-| **WBF 11s + 11m** (설정 선택까지 메타 검증) | – | – | **0.630** | **0.954** | – |
+| **WBF 11s + 11m** (1:1, IoU 0.7) | – | – | **0.630** | **0.954** | – |
 
 <sub>**OOF 37종 (조건부)** = 2개 이상 fold에 있어 검증될 때 학습에도 있는 37종만으로 다시 잰 값. 한 fold에만 있는 희귀 19종을 정답·예측 양쪽에서 뺐으므로
 **모델·앙상블을 같은 조건에서 비교하는 진단값이며, 56종 Kaggle 점수의 추정치가 아니다.**
@@ -293,7 +293,7 @@ flowchart TB
 | OOF 전체(0.62)가 fold 평균(0.85)보다 크게 낮은 이유는 **분할 구조** | 56종 중 **19종이 한 fold에만** 있어 검증될 때마다 학습에 없다 → OOF 상한 37/56 = **0.661**. 두 모델 모두 상한의 94% | 모델 비교는 같은 조건의 37종 OOF로 한다. 최종 모델은 56종을 모두 학습하지만, 희귀 19종의 실제 성능은 이 검증으로 잴 수 없다 |
 | fold 간 편차가 크다 (0.74 ~ 0.92) | 처음 보는 약 수와 점수 순위가 정확히 반대: fold 2는 1종(0.920), fold 1·4는 3종(0.889·0.881), fold 0은 5종(0.835), **fold 3은 7종(0.740)** | fold 하나의 0.005 차이로 결론 내리지 않은 판단이 옳았다 |
 | YOLO11s ≈ YOLO11m | fold 평균 +0.002(11m), 37종 OOF +0.004(11s): 방향이 엇갈림 | 단일 모델이면 2배 빠른 11s. 다만 합치면 좋아진다 ↓ |
-| **두 모델의 WBF가 단일 모델보다 좋다** | 37종 OOF 0.941 → **0.954 (+0.013)**. 같은 OOF에서 12개 설정 중 최댓값을 고르면 낙관적이므로, **fold 하나를 보류하고 나머지 4개 fold로 설정을 고르는 메타 검증**을 5번 했다 → 5번 모두 같은 설정(1:1, IoU 0.7)이 뽑혀 비편향 추정도 0.954 | 최종 제출 = 11s + 11m WBF (1:1, IoU 0.7). 12개 설정은 서로 상관돼 있어 "모두 높다"를 독립 반복으로 보지 않는다 |
+| **두 모델의 WBF가 단일 모델보다 좋다** | 37종 OOF 0.941 → **0.954 (+0.013)**. 같은 OOF에서 12개 설정 중 최댓값을 고르면 낙관적이므로, **fold 하나를 보류하고 나머지 4개 fold로 설정을 고르는 근사 메타 검증**을 5번 했다 → **5번 모두 같은 설정(1:1, IoU 0.7)이 뽑혀 설정 선택이 안정적**이다 (보류 예측 합산 0.954, [`wbf_meta_validation.csv`](reports/experiments/wbf_meta_validation.csv)). 단, 설정을 고를 때 쓴 다른 fold의 모델은 보류 fold를 학습에 포함했으므로 완전한 비편향 추정은 아니다. 엄밀한 nested CV는 보류 fold를 뺀 4개 fold 안에서 모델을 다시 학습해야 해 저장된 OOF만으로는 할 수 없다 | 최종 제출 = 11s + 11m WBF (1:1, IoU 0.7). 12개 설정은 서로 상관돼 있어 "모두 높다"를 독립 반복으로 보지 않는다 |
 
 **전체 데이터 학습 에포크 (휴리스틱)** – 검증 없이 232장 전체로 학습하므로 조기 종료 기준이 없다. fold별 best epoch의 **중앙값**(11s 50, 11m 83)을 쓰고 마지막 가중치(last.pt)를 제출한다.
 데이터가 fold 학습보다 25% 많고 학습률 스케줄이 총 에포크에 묶여 있어 최적이라는 보장은 없다. 대신 fold별 학습 기록으로 민감도를 확인했다 ([`epoch_sensitivity.py`](scripts/epoch_sensitivity.py) → [`epoch_sensitivity.csv`](reports/experiments/epoch_sensitivity.csv)).
@@ -339,7 +339,7 @@ ai-project-01-pill-detection/
 │   ├── make_copy_paste.py      # ⚙️ fold별 Copy-Paste 합성 데이터 생성
 │   ├── run_experiment.py       # ⚙️ 학습 → 평가 → 제출 파일 → 실험 기록 (--fold, --skip-train)
 │   ├── summarize_cv.py         # ⚙️ 5-Fold 점수 · OOF 집계
-│   ├── analyze_oof.py          # ⚙️ open-set 상한 분해 · WBF 설정 선택 · 메타 검증
+│   ├── analyze_oof.py          # ⚙️ open-set 상한 분해 · WBF 설정 선택 · 근사 메타 검증
 │   ├── epoch_sensitivity.py    # ⚙️ 전체 학습 에포크 민감도
 │   ├── train_classifier.py     # ⚙️ 분류기 3종 5-Fold 비교
 │   ├── eval_two_stage.py       # ⚙️ 2단계 모델 평가
@@ -383,7 +383,7 @@ python scripts/run_experiment.py --config configs/e0_baseline.yaml --fold 1   # 
 
 # 5-Fold 분석
 python scripts/summarize_cv.py e0_baseline e2_yolo11m                # fold별·OOF 점수
-python scripts/analyze_oof.py e0_baseline e2_yolo11m                 # open-set 상한 분해 · WBF 설정 선택 · 메타 검증
+python scripts/analyze_oof.py e0_baseline e2_yolo11m                 # open-set 상한 분해 · WBF 설정 선택 · 근사 메타 검증
 python scripts/epoch_sensitivity.py e0_baseline e2_yolo11m           # 전체 학습 에포크 민감도
 
 # 최종 모델 (232장 전체 · 검증 없음 · last.pt) → 제출 파일
@@ -394,6 +394,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 1
 
 데이터 폴더를 레포 옆(`../sprint_ai_project1_data`)에 두면 자동으로 찾는다. 다른 위치라면 `--data-dir` 옵션이나 환경 변수 `PILL_DATA_DIR`로 지정한다.
 `--skip-train`으로 기존 가중치를 다시 평가할 때는 학습 당시 설정 기록과 지금 설정이 다르면 멈춘다.
+사용자 폴더에 쓸 수 없는 환경(CI, 샌드박스)에서는 Ultralytics 설정 폴더를 지정한다: `YOLO_CONFIG_DIR=/tmp/ultralytics python -m pytest tests`
 실행 로그: [`reports/logs/`](reports/logs) · 단위 테스트: [`reports/logs/pytest.log`](reports/logs/pytest.log)
 
 </details>

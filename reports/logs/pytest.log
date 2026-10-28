@@ -26,4 +26,4 @@ tests/test_core.py::test_wbf_does_not_merge_distant_boxes PASSED         [ 86%]
 tests/test_core.py::test_wbf_weighted_and_validation PASSED              [ 90%]
 tests/test_core.py::test_load_oof_rejects_incomplete_or_leaky_predictions PASSED [ 95%]
 tests/test_core.py::test_snapshot_mismatches_catches_changed_and_default_keys PASSED [100%]
-============================= 22 passed in 6.35s ==============================
+============================= 22 passed in 6.64s ==============================

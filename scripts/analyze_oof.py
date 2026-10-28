@@ -106,11 +106,15 @@ def main():
 
 
 def meta_validate(fused_of: dict, gt: pd.DataFrame, folds: pd.DataFrame, learnable: set, out: Path):
-    """WBF 설정 선택까지 포함한 비편향 추정 (leave-one-fold-out).
+    """WBF 설정 선택의 근사 메타 검증 (leave-one-fold-out, 설정 안정성 점검).
 
-    fold k를 완전히 보류하고 나머지 4개 fold의 OOF로 설정을 고른 뒤, 그 설정을 fold k에만 적용한다.
-    5개 보류 fold의 예측을 합쳐 평가하면, 설정을 고를 때 본 적 없는 이미지로만 점수를 낸 셈이 된다.
+    fold k를 보류하고 나머지 4개 fold의 OOF로 설정을 고른 뒤, 그 설정을 fold k에만 적용한다.
     WBF는 이미지마다 독립으로 계산되므로 전체에 한 번 적용한 결과를 fold별로 잘라 써도 같다.
+
+    한계: 설정을 고를 때 쓴 다른 fold의 OOF 예측은, 그 fold의 모델이 fold k를 학습에 포함해 만든 것이다.
+    따라서 fold k가 선택 과정 전체에서 완전히 격리되지는 않는다 (엄밀한 비편향 추정이 아니다).
+    엄밀한 nested CV는 fold k를 뺀 4개 fold 안에서 모델을 다시 inner 학습해야 하므로 저장된 OOF만으로는 할 수 없다.
+    → 이 결과는 "fold마다 같은 설정이 뽑히는가(안정성)"의 근거로 쓰고, 합산 점수는 근사값으로만 보고한다.
     """
     picked, held_out = [], []
     for k in range(N_FOLDS):
@@ -119,13 +123,18 @@ def meta_validate(fused_of: dict, gt: pd.DataFrame, folds: pd.DataFrame, learnab
         inner = {cfg: scores(p[~p["file_name"].isin(val)], inner_gt, learnable)["learnable_mAP50_95"]
                  for cfg, p in fused_of.items()}
         best = max(inner, key=inner.get)  # 동점이면 그리드 순서상 앞의 설정
-        picked.append({"held_out_fold": k, "iou_thr": best[0], "weights": best[1], "inner_learnable_mAP50_95": inner[best]})
-        held_out.append(fused_of[best][fused_of[best]["file_name"].isin(val)])
-    res = pd.DataFrame(picked)
-    res.to_csv(out, index=False)
+        held = fused_of[best][fused_of[best]["file_name"].isin(val)]
+        h = scores(held, gt[gt["file_name"].isin(val)], learnable)
+        picked.append({"held_out_fold": str(k), "iou_thr": best[0], "weights": best[1],
+                       "inner_learnable_mAP50_95": inner[best],
+                       "held_out_learnable_mAP50_95": h["learnable_mAP50_95"], "held_out_mAP50_95": h["oof_mAP50_95"]})
+        held_out.append(held)
     s = scores(pd.concat(held_out, ignore_index=True), gt, learnable)
-    print("\nWBF 메타 검증 (fold별로 나머지 4 fold에서 설정 선택 → 보류 fold 평가)\n" + res.to_string(index=False))
-    print(f"→ 비편향 추정: OOF 전체 {s['oof_mAP50_95']:.4f} · 학습 가능 클래스 {s['learnable_mAP50_95']:.4f}")
+    picked.append({"held_out_fold": "합산(5 fold 보류 예측)", "iou_thr": None, "weights": None, "inner_learnable_mAP50_95": None,
+                   "held_out_learnable_mAP50_95": s["learnable_mAP50_95"], "held_out_mAP50_95": s["oof_mAP50_95"]})
+    res = pd.DataFrame(picked)
+    res.to_csv(out, index=False, encoding="utf-8-sig")
+    print("\nWBF 근사 메타 검증 (fold별로 나머지 4 fold에서 설정 선택 → 보류 fold 평가. 완전 격리는 아님)\n" + res.to_string(index=False))
 
 
 if __name__ == "__main__":
