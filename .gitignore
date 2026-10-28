@@ -31,3 +31,6 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Ultralytics 설정 캐시 (YOLO_CONFIG_DIR를 저장소 안으로 지정했을 때 생김)
+Ultralytics/
