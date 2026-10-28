@@ -35,15 +35,35 @@ from pilldet.evaluate import coco_map  # noqa: E402
 
 
 def load_oof(exp: str, exp_root: Path, folds: pd.DataFrame) -> pd.DataFrame:
-    """fold별 검증 예측을 모아 232장 OOF 예측을 만든다. 하나라도 없으면 멈춘다."""
+    """fold별 검증 예측을 모아 232장 OOF 예측을 만든다.
+
+    다음 중 하나라도 어긋나면 멈춘다 (조용히 틀린 OOF를 계산하지 않도록).
+    - 이미지가 정확히 한 fold에만 속한다
+    - 5개 fold 결과 파일이 모두 있다
+    - 각 fold 파일에는 그 fold의 검증 이미지 예측만 있고, 검증 이미지마다 예측이 하나 이상 있다
+    - 같은 예측 행이 중복되지 않는다
+    - 합친 결과가 전체 이미지를 정확히 한 번씩 덮는다
+    """
+    if folds["file_name"].duplicated().any():
+        raise SystemExit("folds.csv에 두 fold에 동시에 속한 이미지가 있다")
     parts = []
     for k in range(N_FOLDS):
         f = exp_root / (exp if k == 0 else f"{exp}_f{k}") / "val_predictions.csv"
         if not f.exists():
             raise SystemExit(f"{f} 가 없다. 5개 fold가 모두 있어야 한다")
         p = pd.read_csv(f)
-        parts.append(p[p["file_name"].isin(set(folds.loc[folds["fold"] == k, "file_name"]))])
-    return pd.concat(parts, ignore_index=True)
+        val_files = set(folds.loc[folds["fold"] == k, "file_name"])
+        if extra := set(p["file_name"]) - val_files:
+            raise SystemExit(f"{exp} fold {k}: 검증 이미지가 아닌 예측 {len(extra)}장 (예: {sorted(extra)[:3]})")
+        if missing := val_files - set(p["file_name"]):
+            raise SystemExit(f"{exp} fold {k}: 예측이 하나도 없는 검증 이미지 {len(missing)}장 (예: {sorted(missing)[:3]})")
+        if (n_dup := p.duplicated().sum()):
+            raise SystemExit(f"{exp} fold {k}: 중복 예측 행 {n_dup}개")
+        parts.append(p)
+    oof = pd.concat(parts, ignore_index=True)
+    if set(oof["file_name"]) != set(folds["file_name"]):
+        raise SystemExit(f"{exp}: OOF가 전체 {len(folds)}장을 덮지 않는다")
+    return oof
 
 
 def scores(pred: pd.DataFrame, gt: pd.DataFrame, learnable: set) -> dict:
@@ -71,16 +91,41 @@ def main():
     print(res.to_string(index=False))
 
     if len(exps) > 1:
-        rows = []
+        rows, fused_of = [], {}
         grid = [w for w in itertools.product([1, 2], repeat=len(exps)) if min(w) == 1]  # (1,1) (1,2) (2,1) …
         for thr in [0.5, 0.55, 0.6, 0.7]:
             for w in grid:
+                cfg = (thr, ":".join(map(str, w)))
                 fused = weighted_boxes_fusion(list(preds.values()), list(w), iou_thr=thr)
-                fused = fused.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
-                rows.append({"iou_thr": thr, "weights": ":".join(map(str, w)), **scores(fused, gt, learnable)})
+                fused_of[cfg] = fused.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
+                rows.append({"iou_thr": thr, "weights": cfg[1], **scores(fused_of[cfg], gt, learnable)})
         wbf = pd.DataFrame(rows).sort_values("learnable_mAP50_95", ascending=False)
         wbf.to_csv(P.out / "experiments" / "wbf_oof.csv", index=False)
-        print(f"\nWBF ({' : '.join(exps)})\n" + wbf.to_string(index=False))
+        print(f"\nWBF ({' : '.join(exps)}) – 같은 OOF에서 고른 최댓값이라 낙관적이다 (탐색용)\n" + wbf.to_string(index=False))
+        meta_validate(fused_of, gt, folds, learnable, P.out / "experiments" / "wbf_meta_validation.csv")
+
+
+def meta_validate(fused_of: dict, gt: pd.DataFrame, folds: pd.DataFrame, learnable: set, out: Path):
+    """WBF 설정 선택까지 포함한 비편향 추정 (leave-one-fold-out).
+
+    fold k를 완전히 보류하고 나머지 4개 fold의 OOF로 설정을 고른 뒤, 그 설정을 fold k에만 적용한다.
+    5개 보류 fold의 예측을 합쳐 평가하면, 설정을 고를 때 본 적 없는 이미지로만 점수를 낸 셈이 된다.
+    WBF는 이미지마다 독립으로 계산되므로 전체에 한 번 적용한 결과를 fold별로 잘라 써도 같다.
+    """
+    picked, held_out = [], []
+    for k in range(N_FOLDS):
+        val = set(folds.loc[folds["fold"] == k, "file_name"])
+        inner_gt = gt[~gt["file_name"].isin(val)]
+        inner = {cfg: scores(p[~p["file_name"].isin(val)], inner_gt, learnable)["learnable_mAP50_95"]
+                 for cfg, p in fused_of.items()}
+        best = max(inner, key=inner.get)  # 동점이면 그리드 순서상 앞의 설정
+        picked.append({"held_out_fold": k, "iou_thr": best[0], "weights": best[1], "inner_learnable_mAP50_95": inner[best]})
+        held_out.append(fused_of[best][fused_of[best]["file_name"].isin(val)])
+    res = pd.DataFrame(picked)
+    res.to_csv(out, index=False)
+    s = scores(pd.concat(held_out, ignore_index=True), gt, learnable)
+    print("\nWBF 메타 검증 (fold별로 나머지 4 fold에서 설정 선택 → 보류 fold 평가)\n" + res.to_string(index=False))
+    print(f"→ 비편향 추정: OOF 전체 {s['oof_mAP50_95']:.4f} · 학습 가능 클래스 {s['learnable_mAP50_95']:.4f}")
 
 
 if __name__ == "__main__":

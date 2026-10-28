@@ -189,3 +189,52 @@ def test_wbf_weighted_and_validation():
         weighted_boxes_fusion([_pred(0, 0.9)], weights=[1, 1])
     with pytest.raises(ValueError):
         weighted_boxes_fusion([_pred(0, 0.9), _pred(0, 0.9)], weights=[1, 0])
+
+
+def _load_script(name):
+    import importlib.util
+    path = Path(__file__).resolve().parents[1] / "scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_load_oof_rejects_incomplete_or_leaky_predictions(tmp_path):
+    load_oof = _load_script("analyze_oof").load_oof
+    folds = pd.DataFrame({"file_name": [f"{i}.png" for i in range(10)], "fold": [i % 5 for i in range(10)]})
+
+    def write(k, files):
+        d = tmp_path / ("exp" if k == 0 else f"exp_f{k}")
+        d.mkdir(exist_ok=True)
+        pd.DataFrame({"file_name": files, "category_id": 1, "x": 0, "y": 0, "w": 1, "h": 1, "score": 0.9}) \
+            .to_csv(d / "val_predictions.csv", index=False)
+
+    for k in range(5):
+        write(k, list(folds.loc[folds["fold"] == k, "file_name"]))
+    assert len(load_oof("exp", tmp_path, folds)) == 10          # 정상: 10장을 한 번씩
+
+    write(0, ["0.png"])                                         # fold 0의 5.png 예측 누락
+    with pytest.raises(SystemExit, match="예측이 하나도 없는"):
+        load_oof("exp", tmp_path, folds)
+    write(0, ["0.png", "5.png", "1.png"])                       # 다른 fold 이미지가 섞임 (누수)
+    with pytest.raises(SystemExit, match="검증 이미지가 아닌"):
+        load_oof("exp", tmp_path, folds)
+    write(0, ["0.png", "5.png", "5.png"])                       # 같은 행 중복
+    with pytest.raises(SystemExit, match="중복"):
+        load_oof("exp", tmp_path, folds)
+
+
+def test_snapshot_mismatches_catches_changed_and_default_keys(tmp_path):
+    import yaml
+    from pilldet.train import snapshot_mismatches
+    cfg = {"name": "x", "model": "yolo11s.pt", "data": "data_fold0.yaml", "imgsz": 640}
+    snap = {"model": "C:/w/yolo11s.pt", "data": "D:/ds/data_fold0.yaml", "imgsz": 640, "flipud": 0.0,
+            "seed": 42, "deterministic": True, "plots": True, "device": "0", "project": "C:/runs"}
+    (tmp_path / "args.yaml").write_text(yaml.safe_dump(snap), encoding="utf-8")
+    assert snapshot_mismatches(cfg, tmp_path) == []                      # 경로·장치 차이는 무시
+    assert any("imgsz" in d for d in snapshot_mismatches({**cfg, "imgsz": 960}, tmp_path))
+    snap["flipud"] = 0.5                                                 # 설정 파일에 없는 키가 기본값과 다름
+    (tmp_path / "args.yaml").write_text(yaml.safe_dump(snap), encoding="utf-8")
+    assert any("flipud" in d for d in snapshot_mismatches(cfg, tmp_path))
+    assert snapshot_mismatches(cfg, tmp_path / "none") != []             # 기록이 없으면 불일치

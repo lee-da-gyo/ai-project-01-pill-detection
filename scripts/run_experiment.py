@@ -39,7 +39,7 @@ from pilldet.data import list_test_images, load_clean_annotations  # noqa: E402
 from pilldet.evaluate import coco_map  # noqa: E402
 from pilldet.predict import predict_images  # noqa: E402
 from pilldet.submission import load_submission_spec, to_submission, validate_submission  # noqa: E402
-from pilldet.train import best_epoch, load_config, train  # noqa: E402
+from pilldet.train import best_epoch, load_config, snapshot_mismatches, train  # noqa: E402
 
 PLOTS = ["results.png", "confusion_matrix_normalized.png", "BoxPR_curve.png", "val_batch0_pred.jpg", "val_batch0_labels.jpg"]
 
@@ -96,6 +96,8 @@ def main():
     k = fold_of(cfg["data"])
     overrides = {} if k is not None else {"val": False, "patience": 0}
     t0 = time.time()
+    if args.skip_train and (diffs := snapshot_mismatches(cfg, runs_dir / name, **overrides)):
+        raise SystemExit(f"{name}: 지금 설정이 학습 당시와 다르다 → 다시 학습하거나 설정을 되돌리자\n  " + "\n  ".join(diffs))
     run_dir = runs_dir / name if args.skip_train else train(cfg, P.dataset, runs_dir, **overrides)
     train_min = (time.time() - t0) / 60
     if k is not None:
@@ -108,7 +110,8 @@ def main():
                 "mAP50": float("nan"), "mAP50_95": float("nan")}
         log.info(f"[1/4] 전체 데이터 학습 완료 ({train_min:.1f}분): 고정 {cfg['epochs']} 에포크, last.pt 사용 (검증 없음)")
         weights = run_dir / "weights" / "last.pt"
-    for p in PLOTS:
+    # 전체 데이터 학습의 PR 곡선·혼동 행렬은 학습에 쓴 이미지로 계산되므로 손실 곡선만 남긴다
+    for p in PLOTS if k is not None else ["results.png"]:
         if (run_dir / p).exists():
             shutil.copy2(run_dir / p, exp_dir / p)
 

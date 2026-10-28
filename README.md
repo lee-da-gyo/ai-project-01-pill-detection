@@ -278,22 +278,34 @@ flowchart TB
 5개 모델 WBF 앙상블은 mAP50-95 **0.841**로 단일 최고(0.839)보다 높았다 ([`wbf_fold0.csv`](reports/experiments/wbf_fold0.csv)). 다만 같은 fold에서 조합을 고르고 평가했으므로 5-Fold에서 다시 확인한다.
 
 ### 5-Fold 교차검증: 최종 후보 비교 (232장 OOF)
-| 모델 | fold별 mAP50-95 (0 / 1 / 2 / 3 / 4) | fold 평균 ± 표준편차 | OOF 전체 | **OOF 학습 가능한 약 37종** | fold별 best epoch |
+| 모델 | fold별 mAP50-95 (0 / 1 / 2 / 3 / 4) | fold 평균 ± 표준편차 | OOF 전체 (56종) | OOF 37종 (조건부) | fold별 best epoch |
 |:---|:---:|:---:|:---:|:---:|:---:|
-| YOLO11s | 0.835 / 0.889 / 0.920 / 0.740 / 0.881 | 0.853 ± 0.070 | 0.621 | **0.941** | 87 / 41 / 75 / 41 / 50 |
+| YOLO11s | 0.835 / 0.889 / 0.920 / 0.740 / 0.881 | 0.853 ± 0.070 | 0.621 | 0.941 | 87 / 41 / 75 / 41 / 50 |
 | YOLO11m | 0.839 / 0.882 / 0.924 / 0.745 / 0.883 | 0.855 ± 0.068 | 0.619 | 0.936 | 94 / 61 / 94 / 46 / 83 |
-| **WBF 11s + 11m (1:1, IoU 0.7)** | – | – | **0.630** | **0.954** | – |
+| **WBF 11s + 11m** (설정 선택까지 메타 검증) | – | – | **0.630** | **0.954** | – |
 
-<sub>재현: [`scripts/summarize_cv.py`](scripts/summarize_cv.py) → [`cv_summary.csv`](reports/cv_summary.csv), [`scripts/analyze_oof.py`](scripts/analyze_oof.py) → [`oof_analysis.csv`](reports/experiments/oof_analysis.csv) · [`wbf_oof.csv`](reports/experiments/wbf_oof.csv)</sub>
+<sub>**OOF 37종 (조건부)** = 2개 이상 fold에 있어 검증될 때 학습에도 있는 37종만으로 다시 잰 값. 한 fold에만 있는 희귀 19종을 정답·예측 양쪽에서 뺐으므로
+**모델·앙상블을 같은 조건에서 비교하는 진단값이며, 56종 Kaggle 점수의 추정치가 아니다.**
+재현: [`summarize_cv.py`](scripts/summarize_cv.py) → [`cv_summary.csv`](reports/cv_summary.csv) · [`analyze_oof.py`](scripts/analyze_oof.py) → [`oof_analysis.csv`](reports/experiments/oof_analysis.csv), [`wbf_oof.csv`](reports/experiments/wbf_oof.csv), [`wbf_meta_validation.csv`](reports/experiments/wbf_meta_validation.csv)</sub>
 
 | 발견 | 근거 | 결정 |
 |:---|:---|:---|
-| OOF 전체(0.62)가 fold 평균(0.85)보다 크게 낮은 이유는 **분할 구조** | 56종 중 **19종이 한 fold에만** 있어 검증될 때마다 학습에 없다 → OOF 상한 37/56 = **0.661**. 두 모델 모두 상한의 94% | 모델 비교는 학습 가능한 37종 OOF로 한다. 최종 모델은 232장 전체(56종 모두)로 학습하므로 이 값이 더 가까운 추정치 |
-| fold 간 편차가 크다 (0.74 ~ 0.92) | 처음 보는 약 수와 점수 순위가 정확히 반대: fold 2는 1종(0.920), fold 0은 5종(0.835), **fold 3은 7종(0.740)** | fold 하나의 0.005 차이로 결론 내리지 않은 판단이 옳았다 |
-| YOLO11s ≈ YOLO11m | fold 평균 +0.002(11m), 학습 가능 OOF +0.004(11s): 방향이 엇갈림 | 단일 모델이면 2배 빠른 11s. 하지만 둘은 서로 다른 오류를 낸다 ↓ |
-| **두 모델의 WBF가 일관되게 좋다** | 학습 가능 OOF 0.941 → **0.954 (+0.013)**. IoU 0.5~0.7, 가중치 3가지 **12개 설정 모두** 단일 모델보다 높음 | 최종 제출 = 11s + 11m WBF, 설정은 OOF 최고값(1:1, IoU 0.7) |
+| OOF 전체(0.62)가 fold 평균(0.85)보다 크게 낮은 이유는 **분할 구조** | 56종 중 **19종이 한 fold에만** 있어 검증될 때마다 학습에 없다 → OOF 상한 37/56 = **0.661**. 두 모델 모두 상한의 94% | 모델 비교는 같은 조건의 37종 OOF로 한다. 최종 모델은 56종을 모두 학습하지만, 희귀 19종의 실제 성능은 이 검증으로 잴 수 없다 |
+| fold 간 편차가 크다 (0.74 ~ 0.92) | 처음 보는 약 수와 점수 순위가 정확히 반대: fold 2는 1종(0.920), fold 1·4는 3종(0.889·0.881), fold 0은 5종(0.835), **fold 3은 7종(0.740)** | fold 하나의 0.005 차이로 결론 내리지 않은 판단이 옳았다 |
+| YOLO11s ≈ YOLO11m | fold 평균 +0.002(11m), 37종 OOF +0.004(11s): 방향이 엇갈림 | 단일 모델이면 2배 빠른 11s. 다만 합치면 좋아진다 ↓ |
+| **두 모델의 WBF가 단일 모델보다 좋다** | 37종 OOF 0.941 → **0.954 (+0.013)**. 같은 OOF에서 12개 설정 중 최댓값을 고르면 낙관적이므로, **fold 하나를 보류하고 나머지 4개 fold로 설정을 고르는 메타 검증**을 5번 했다 → 5번 모두 같은 설정(1:1, IoU 0.7)이 뽑혀 비편향 추정도 0.954 | 최종 제출 = 11s + 11m WBF (1:1, IoU 0.7). 12개 설정은 서로 상관돼 있어 "모두 높다"를 독립 반복으로 보지 않는다 |
 
-**전체 데이터 학습 에포크** – 검증 없이 232장 전체로 학습하므로 조기 종료 기준이 없다. fold별 best epoch의 **중앙값**(11s 50, 11m 83)을 쓰고 마지막 가중치(last.pt)를 제출한다.
+**전체 데이터 학습 에포크 (휴리스틱)** – 검증 없이 232장 전체로 학습하므로 조기 종료 기준이 없다. fold별 best epoch의 **중앙값**(11s 50, 11m 83)을 쓰고 마지막 가중치(last.pt)를 제출한다.
+데이터가 fold 학습보다 25% 많고 학습률 스케줄이 총 에포크에 묶여 있어 최적이라는 보장은 없다. 대신 fold별 학습 기록으로 민감도를 확인했다 ([`epoch_sensitivity.py`](scripts/epoch_sensitivity.py) → [`epoch_sensitivity.csv`](reports/experiments/epoch_sensitivity.csv)).
+
+| 고정 에포크 후보 | YOLO11s: 최고점 대비 평균 손해 | YOLO11m: 최고점 대비 평균 손해 |
+|:---|:---:|:---:|
+| P25 (41 / 61) | 0.010 | 0.009 |
+| **중앙값 (50 / 83)** | **0.011** | **0.007** |
+| P75 (75 / 94) | 0.004* | 0.007* |
+
+<sub>* 조기 종료로 그 에포크까지 학습하지 않은 fold(11s 2개, 11m 2개)는 빠져 유리하게 치우친다. 빠진 fold는 마지막 에포크(71~76)에서도 0.003~0.012를 잃었다.
+→ 어느 후보든 손해가 약 0.01로 **최고점 주변이 평평하다.** 에포크 선택이 결과를 크게 바꾸지 않으므로 중앙값을 유지했다.</sub>
 
 ### 희귀 약 보강: Copy-Paste 합성
 <img src="reports/figures/copy_paste_samples.png" width="100%" alt="Copy-Paste 합성">
@@ -318,13 +330,22 @@ ai-project-01-pill-detection/
 │   ├── predict.py              #   예측 · 도메인 후처리
 │   ├── evaluate.py             #   COCO mAP · 클래스별 AP
 │   ├── submission.py           #   Kaggle 제출 파일 생성 · 형식 검사
+│   ├── classifier.py           #   VGG16 · ResNet50 · EfficientNet-B0 약 분류기
+│   ├── two_stage.py            #   검출 박스 + 분류기 결합 (2단계 모델)
+│   ├── ensemble.py             #   Weighted Boxes Fusion 직접 구현
 │   └── viz.py                  #   한글 폰트, 박스 시각화
 ├── scripts/
 │   ├── prepare_data.py         # ⚙️ 데이터 준비 전체를 한 번에 실행
 │   ├── make_copy_paste.py      # ⚙️ fold별 Copy-Paste 합성 데이터 생성
-│   └── run_experiment.py       # ⚙️ 학습 → 평가 → 제출 파일 → 실험 기록
+│   ├── run_experiment.py       # ⚙️ 학습 → 평가 → 제출 파일 → 실험 기록 (--fold, --skip-train)
+│   ├── summarize_cv.py         # ⚙️ 5-Fold 점수 · OOF 집계
+│   ├── analyze_oof.py          # ⚙️ open-set 상한 분해 · WBF 설정 선택 · 메타 검증
+│   ├── epoch_sensitivity.py    # ⚙️ 전체 학습 에포크 민감도
+│   ├── train_classifier.py     # ⚙️ 분류기 3종 5-Fold 비교
+│   ├── eval_two_stage.py       # ⚙️ 2단계 모델 평가
+│   └── make_submission.py      # ⚙️ 최종 모델 WBF → 제출 파일
 ├── tests/
-│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (14개)
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (22개)
 ├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
 │   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
 │   ├── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
@@ -349,28 +370,41 @@ ai-project-01-pill-detection/
 ## 9. 실행 방법
 
 <details open>
-<summary><b>Kaggle Notebook (권장)</b></summary>
+<summary><b>로컬 (전체 파이프라인 · 실험과 제출에 사용)</b></summary>
+
+```bash
+pip install -r requirements.txt
+python scripts/prepare_data.py                                       # 라벨 정제 · YOLO/COCO 변환 · 5-Fold (약 10초)
+python -m pytest tests -v                                            # 단위 테스트
+
+# 실험 1회 = 설정 파일 1개 (RTX 3060 기준 YOLO11s 약 6분)
+python scripts/run_experiment.py --config configs/e0_baseline.yaml   # fold 0
+python scripts/run_experiment.py --config configs/e0_baseline.yaml --fold 1   # fold 1~4도 같은 방식
+
+# 5-Fold 분석
+python scripts/summarize_cv.py e0_baseline e2_yolo11m                # fold별·OOF 점수
+python scripts/analyze_oof.py e0_baseline e2_yolo11m                 # open-set 상한 분해 · WBF 설정 선택 · 메타 검증
+python scripts/epoch_sensitivity.py e0_baseline e2_yolo11m           # 전체 학습 에포크 민감도
+
+# 최종 모델 (232장 전체 · 검증 없음 · last.pt) → 제출 파일
+python scripts/run_experiment.py --config configs/final_yolo11s.yaml
+python scripts/run_experiment.py --config configs/final_yolo11m.yaml
+python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 1 1 --iou-thr 0.7 --name final_11s_11m_wbf
+```
+
+데이터 폴더를 레포 옆(`../sprint_ai_project1_data`)에 두면 자동으로 찾는다. 다른 위치라면 `--data-dir` 옵션이나 환경 변수 `PILL_DATA_DIR`로 지정한다.
+`--skip-train`으로 기존 가중치를 다시 평가할 때는 학습 당시 설정 기록과 지금 설정이 다르면 멈춘다.
+실행 로그: [`reports/logs/`](reports/logs) · 단위 테스트: [`reports/logs/pytest.log`](reports/logs/pytest.log)
+
+</details>
+
+<details>
+<summary><b>Kaggle Notebook (EDA·전처리 노트북 실행)</b></summary>
 
 1. Kaggle에서 노트북을 Import 한다 (File → Import Notebook)
 2. 오른쪽 패널 **Add Input**에서 대회 데이터를 연결한다. 데이터 경로는 `/kaggle/input`에서 자동으로 찾는다
 3. Settings → **Internet On** (공통 코드 내려받기, 한글 폰트 설치용) → **Run All**. 노트북이 이 레포를 자동으로 clone 해서 `src/pilldet`을 불러온다
 4. `01_eda` → `02_preprocess` 순서로 실행한다. 결과물은 `/kaggle/working/`에 저장된다
-
-</details>
-
-<details>
-<summary><b>로컬</b></summary>
-
-```bash
-pip install -r requirements.txt
-python scripts/prepare_data.py      # 데이터 준비 전체 실행 (약 10초)
-python scripts/make_copy_paste.py --fold 0 --n 400                 # Copy-Paste 합성 (약 45초)
-python scripts/run_experiment.py --config configs/e0_baseline.yaml # 실험 1회 (RTX 3060 기준 약 6분)
-python -m pytest tests -v           # 단위 테스트
-```
-
-데이터 폴더를 레포 옆(`../sprint_ai_project1_data`)에 두면 자동으로 찾는다. 다른 위치라면 `--data-dir` 옵션이나 환경 변수 `PILL_DATA_DIR`로 지정한다.
-실행 로그: [`reports/logs/prepare_data.log`](reports/logs/prepare_data.log) · [`reports/logs/pytest.log`](reports/logs/pytest.log)
 
 </details>
 
