@@ -63,8 +63,10 @@ def export_yolo(clean: pd.DataFrame, folds: pd.DataFrame, class_map: pd.DataFram
             lines.append(f"{r.yolo_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
         (lbl_out / f.replace(".png", ".txt")).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    # 학습 그래프에서 글자가 깨지지 않게 클래스 이름은 영문명을 쓴다
-    names = {int(r.yolo_id): str(r.dl_name_en).strip() for r in class_map.itertuples()}
+    # 학습 그래프에서 글자가 깨지지 않게 클래스 이름은 영문명을 쓴다.
+    # 원본에 영문명이 빈 약(32310 글리아타민연질캡슐)이 있어, 그때는 ASCII인 약 코드로 대신한다
+    names = {int(r.yolo_id): (str(r.dl_name_en).strip() if pd.notna(r.dl_name_en) and str(r.dl_name_en).strip()
+                              else f"id_{r.category_id}") for r in class_map.itertuples()}
 
     def write_list(name, files):
         (dataset_dir / name).write_text("\n".join(f"./images/{f}" for f in files) + "\n", encoding="utf-8")
