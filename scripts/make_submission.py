@@ -33,14 +33,16 @@ from pilldet.config import get_paths  # noqa: E402
 from pilldet.data import list_test_images  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
 from pilldet.predict import predict_images  # noqa: E402
+from pilldet.preprocess import preprocess_of  # noqa: E402
 from pilldet.submission import load_submission_spec, to_submission, validate_submission  # noqa: E402
 
 
-def weights_of(run: str) -> tuple[Path, int]:
-    """실험 이름 → (가중치 경로, 학습 해상도).
+def weights_of(run: str) -> tuple[Path, int, str | None]:
+    """실험 이름 → (가중치 경로, 학습 해상도, 전처리).
 
     학습 당시의 설정 스냅샷(runs/<run>/args.yaml, Ultralytics가 저장)을 읽는다. 현재 configs/는 그 뒤에 바뀌었을 수 있다.
     검증 없이 학습한 전체 데이터 모델(val: false)은 last.pt, 그 밖에는 best.pt를 쓴다. 모호하면 추측하지 않고 멈춘다.
+    전처리 데이터셋(data_*_clahe.yaml)으로 학습한 모델이면 테스트 이미지에도 같은 전처리를 적용해야 한다.
     """
     run_dir = REPO_DIR / "runs" / run
     args_path = run_dir / "args.yaml"
@@ -56,7 +58,7 @@ def weights_of(run: str) -> tuple[Path, int]:
     w = run_dir / "weights" / ("last.pt" if full else "best.pt")
     if not w.exists():
         raise FileNotFoundError(f"가중치가 없다: {w}")
-    return w, int(snap["imgsz"])
+    return w, int(snap["imgsz"]), preprocess_of(snap["data"])
 
 
 def main():
@@ -80,9 +82,10 @@ def main():
     test_paths = list_test_images(P.test_img)
     preds = []
     for run in args.runs:
-        w, imgsz = weights_of(run)
-        p = predict_images(w, test_paths, class_map, imgsz=imgsz, augment=args.tta, conf=args.conf, max_det=args.max_det)
-        log(f"{run}: {w.name}, imgsz {imgsz}, TTA {args.tta} → 예측 {len(p):,}개")
+        w, imgsz, pre = weights_of(run)
+        p = predict_images(w, test_paths, class_map, imgsz=imgsz, augment=args.tta, conf=args.conf, max_det=args.max_det,
+                           preprocess=pre)
+        log(f"{run}: {w.name}, imgsz {imgsz}, 전처리 {pre or '없음'}, TTA {args.tta} → 예측 {len(p):,}개")
         preds.append(p)
     pred = preds[0] if len(preds) == 1 else weighted_boxes_fusion(preds, args.weights, iou_thr=args.iou_thr)
     # WBF 후에도 이미지당 상위 100개만 남긴다 (COCO maxDets)

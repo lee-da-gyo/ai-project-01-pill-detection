@@ -307,6 +307,27 @@ flowchart TB
 <sub>* 조기 종료로 그 에포크까지 학습하지 않은 fold(11s 2개, 11m 2개)는 빠져 유리하게 치우친다. 빠진 fold는 마지막 에포크(71~76)에서도 0.003~0.012를 잃었다.
 → 어느 후보든 손해가 약 0.01로 **최고점 주변이 평평하다.** 에포크 선택이 결과를 크게 바꾸지 않으므로 중앙값을 유지했다.</sub>
 
+### 색 보정 전처리: CLAHE 전후 비교 (5-Fold)
+EDA에서 Test가 Train보다 어둡고 대비가 컸다. 이미지마다 국소 대비를 평탄화하는 CLAHE로 이 차이를 줄일 수 있는지 YOLO11s 5-Fold에서 **전처리 하나만 바꿔** 비교했다.
+알약 색은 클래스를 가르는 단서라 LAB 밝기 채널에만 적용했고, 설정값은 검증 점수로 고르지 않고 OpenCV 기본값(clip 2.0, tile 8×8)으로 고정했다. 학습·검증·테스트 모두 같은 함수를 거친다.
+
+<img src="reports/figures/19_clahe_before_after.png" width="70%" alt="CLAHE 전후">
+
+| 측정 | 원본 | CLAHE | 해석 |
+|:---|:---:|:---:|:---|
+| Test − Train 밝기 차이 | −5.55 | **−3.25** | 밝기 차이는 40% 줄었다 |
+| Test − Train 대비 차이 | +2.88 | +2.98 | 대비 차이는 그대로 (둘 다 커져서) |
+| fold별 mAP50-95 (0 / 1 / 2 / 3 / 4) | 0.835 / 0.889 / 0.920 / 0.740 / 0.881 | 0.832 / 0.893 / 0.921 / 0.732 / 0.880 | **2개 fold 상승, 3개 fold 하락** |
+| fold 평균 | 0.853 | 0.852 | −0.002 |
+| OOF 37종 (조건부) | 0.941 | 0.951 | +0.011, 조합 단위 부트스트랩 95% 구간 **−0.006 ~ +0.027** (개선 확률 87%) |
+
+<sub>부트스트랩: 같은 약 묶음을 여러 각도로 찍은 이미지는 서로 독립이 아니므로, 분할과 같은 단위인 조합 114개를 복원 추출(1000회)해 두 실험의 차이를 짝지어 계산했다.
+재현: [`make_preprocessed.py`](scripts/make_preprocessed.py) → [`preprocess_clahe_stats.csv`](reports/experiments/preprocess_clahe_stats.csv) · [`compare_oof.py`](scripts/compare_oof.py) → [`compare_e0_baseline_vs_e4_clahe.csv`](reports/experiments/compare_e0_baseline_vs_e4_clahe.csv)</sub>
+
+→ **채택하지 않는다.** fold 단위로는 방향이 엇갈리고, 합친 OOF의 개선도 구간이 0을 포함한다.
+합친 OOF만 오른 것은 5개 fold 모델의 예측을 한 순위로 섞어 평가하는 방식이라, fold 안의 검출 성능 외에 모델 간 점수 분포 차이도 함께 반영되기 때문일 수 있다 (확인하지 않은 가설).
+그림에서 보듯 CLAHE는 배경 질감을 키우고 알약 둘레에 어두운 테두리를 만든다. 밝기 차이는 이미 학습 중 HSV 증강이 다루고 있어 전처리로 얻을 몫이 작았던 것으로 본다.
+
 ### 희귀 약 보강: Copy-Paste 합성
 <img src="reports/figures/copy_paste_samples.png" width="100%" alt="Copy-Paste 합성">
 <p align="center"><sub>노란 박스 = 다른 사진에서 오려 붙인 알약. 희귀할수록 자주 뽑고(확률 ∝ 1/√빈도), 90° 회전·뒤집기·크기 ±10%. fold별로 학습 이미지만 사용해 누수 없음</sub></p>
@@ -325,6 +346,7 @@ ai-project-01-pill-detection/
 │   ├── clean.py                #   라벨 감사 · 규칙 기반 수정 · 무결성 검사
 │   ├── split.py                #   조합 단위 Stratified Group K-Fold
 │   ├── export.py               #   YOLO / COCO 내보내기 · 왕복 검증
+│   ├── preprocess.py           #   CLAHE 전처리 (학습 · 검증 · 테스트 공통)
 │   ├── augment.py              #   Copy-Paste 합성 (희귀 약 보강)
 │   ├── train.py                #   설정 파일 기반 YOLO 학습
 │   ├── predict.py              #   예측 · 도메인 후처리
@@ -337,15 +359,17 @@ ai-project-01-pill-detection/
 ├── scripts/
 │   ├── prepare_data.py         # ⚙️ 데이터 준비 전체를 한 번에 실행
 │   ├── make_copy_paste.py      # ⚙️ fold별 Copy-Paste 합성 데이터 생성
+│   ├── make_preprocessed.py    # ⚙️ 전처리 데이터셋 생성 · Train/Test 분포 차이 측정
 │   ├── run_experiment.py       # ⚙️ 학습 → 평가 → 제출 파일 → 실험 기록 (--fold, --skip-train)
 │   ├── summarize_cv.py         # ⚙️ 5-Fold 점수 · OOF 집계
 │   ├── analyze_oof.py          # ⚙️ open-set 상한 분해 · WBF 설정 선택 · 근사 메타 검증
 │   ├── epoch_sensitivity.py    # ⚙️ 전체 학습 에포크 민감도
+│   ├── compare_oof.py          # ⚙️ 두 실험 OOF 짝지은 비교 · 조합 단위 부트스트랩
 │   ├── train_classifier.py     # ⚙️ 분류기 3종 5-Fold 비교
 │   ├── eval_two_stage.py       # ⚙️ 2단계 모델 평가
 │   └── make_submission.py      # ⚙️ 최종 모델 WBF → 제출 파일
 ├── tests/
-│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (22개)
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (24개)
 ├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
 │   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
 │   ├── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
@@ -385,6 +409,11 @@ python scripts/run_experiment.py --config configs/e0_baseline.yaml --fold 1   # 
 python scripts/summarize_cv.py e0_baseline e2_yolo11m                # fold별·OOF 점수
 python scripts/analyze_oof.py e0_baseline e2_yolo11m                 # open-set 상한 분해 · WBF 설정 선택 · 근사 메타 검증
 python scripts/epoch_sensitivity.py e0_baseline e2_yolo11m           # 전체 학습 에포크 민감도
+
+# 전처리 비교 (CLAHE): 데이터셋 생성 → 5-Fold (fold 1~4는 --fold) → 기준과 짝지은 비교
+python scripts/make_preprocessed.py --method clahe
+python scripts/run_experiment.py --config configs/e4_clahe.yaml
+python scripts/compare_oof.py e0_baseline e4_clahe
 
 # 최종 모델 (232장 전체 · 검증 없음 · last.pt) → 제출 파일
 python scripts/run_experiment.py --config configs/final_yolo11s.yaml

@@ -1,0 +1,14 @@
+2026-10-28 14:01:56 | 실험 e4_clahe_f2: YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 2
+2026-10-28 14:01:56 | 설정: {'name': 'e4_clahe_f2', 'description': 'YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 2', 'model': 'yolo11s.pt', 'data': 'data_fold2_clahe.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
+2026-10-28 14:07:41 | [1/4] 학습 완료 (5.8분): 최고 에포크 77 / 100 | P 0.936 R 0.939 mAP50 0.9415 mAP50-95 0.9269
+2026-10-28 14:07:41 |       전처리 clahe: val·테스트 이미지에도 같은 함수로 적용해 예측
+2026-10-28 14:07:44 | [2/4] fold 2 COCO 평가: mAP50-95 0.9206 | mAP50 0.9402 | mAP75 0.9295 | 학습에 있는 클래스만 mAP50-95 0.9534
+2026-10-28 14:07:44 |       AP50-95 하위 5개 클래스:
+        dl_name  n_boxes  AP50_95
+    아빌리파이정 10mg        3 0.000000
+   아토젯정 10/40mg       37 0.777228
+     아토르바정 10mg       22 0.778394
+     플라빅스정 75mg       20 0.801980
+콜리네이트연질캡슐 400mg       17 0.814356
+2026-10-28 14:08:19 | [3/4] 제출 파일: submissions/e4_clahe_f2.csv {'rows': 7756, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 9.21, 'max_per_image': 23}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-28 14:08:19 | [4/4] 실험 기록 추가: reports/experiments.csv (23개 실험)

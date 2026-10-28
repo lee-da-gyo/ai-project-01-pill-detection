@@ -1,0 +1,14 @@
+2026-10-28 13:48:55 | 실험 e4_clahe: YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 0
+2026-10-28 13:48:55 | 설정: {'name': 'e4_clahe', 'description': 'YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 0', 'model': 'yolo11s.pt', 'data': 'data_fold0_clahe.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
+2026-10-28 13:54:54 | [1/4] 학습 완료 (6.0분): 최고 에포크 66 / 96 | P 0.885 R 0.823 mAP50 0.8415 mAP50-95 0.8333
+2026-10-28 13:54:55 |       전처리 clahe: val·테스트 이미지에도 같은 함수로 적용해 예측
+2026-10-28 13:54:57 | [2/4] fold 0 COCO 평가: mAP50-95 0.8322 | mAP50 0.8440 | mAP75 0.8440 | 학습에 있는 클래스만 mAP50-95 0.9808
+2026-10-28 13:54:57 |       AP50-95 하위 5개 클래스:
+              dl_name  n_boxes  AP50_95
+                 알드린정        3      0.0
+    써스펜8시간이알서방정 650mg        3      0.0
+        다보타민큐정 10mg/병        6      0.0
+      리렉스펜정 300mg/PTP        3      0.0
+자누메트엑스알서방정 100/1000mg        3      0.0
+2026-10-28 13:55:31 | [3/4] 제출 파일: submissions/e4_clahe.csv {'rows': 8715, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 10.35, 'max_per_image': 28}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-28 13:55:31 | [4/4] 실험 기록 추가: reports/experiments.csv (21개 실험)

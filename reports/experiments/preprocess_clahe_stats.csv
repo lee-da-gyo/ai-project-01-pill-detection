@@ -1,0 +1,5 @@
+﻿stage,split,brightness_mean,brightness_std,contrast_mean,contrast_std,test_minus_train_brightness,test_minus_train_contrast
+before,test,125.93,14.56,26.52,3.75,-5.55,2.88
+before,train,131.48,12.2,23.64,2.94,-5.55,2.88
+clahe,test,126.69,10.78,28.69,3.45,-3.25,2.98
+clahe,train,129.94,9.1,25.71,2.91,-3.25,2.98

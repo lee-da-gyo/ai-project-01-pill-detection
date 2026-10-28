@@ -1,0 +1,14 @@
+2026-10-28 14:14:53 | 실험 e4_clahe_f4: YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 4
+2026-10-28 14:14:53 | 설정: {'name': 'e4_clahe_f4', 'description': 'YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 4', 'model': 'yolo11s.pt', 'data': 'data_fold4_clahe.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
+2026-10-28 14:21:06 | [1/4] 학습 완료 (6.2분): 최고 에포크 92 / 100 | P 0.907 R 0.863 mAP50 0.9031 mAP50-95 0.8971
+2026-10-28 14:21:06 |       전처리 clahe: val·테스트 이미지에도 같은 함수로 적용해 예측
+2026-10-28 14:21:08 | [2/4] fold 4 COCO 평가: mAP50-95 0.8799 | mAP50 0.8872 | mAP75 0.8872 | 학습에 있는 클래스만 mAP50-95 0.9679
+2026-10-28 14:21:08 |       AP50-95 하위 5개 클래스:
+          dl_name  n_boxes  AP50_95
+     트루비타정 60mg/병        3 0.000000
+    맥시부펜이알정 300mg        3 0.000000
+             레일라정        3 0.000000
+트라젠타듀오정 2.5/850mg        9 0.504950
+    아모잘탄정 5/100mg       12 0.772277
+2026-10-28 14:21:40 | [3/4] 제출 파일: submissions/e4_clahe_f4.csv {'rows': 7806, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 9.27, 'max_per_image': 28}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-28 14:21:40 | [4/4] 실험 기록 추가: reports/experiments.csv (25개 실험)

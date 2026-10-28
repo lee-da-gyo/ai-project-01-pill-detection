@@ -1,0 +1,14 @@
+# e4_clahe – E0에서 한 가지만 바꾼 실험
+# 비교 기준: e0_baseline (5-Fold OOF)
+# 전처리는 데이터셋 이름 접미사로 정해진다 (data_fold0_clahe.yaml → clahe). val·테스트 예측에도 같은 함수를 적용한다
+# 준비: python scripts/make_preprocessed.py --method clahe
+name: e4_clahe
+description: "YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 0"
+model: yolo11s.pt          # COCO 사전학습 가중치
+data: data_fold0_clahe.yaml  # 조합 단위 5-Fold 중 fold 0, CLAHE 적용 이미지
+imgsz: 640
+epochs: 100
+patience: 30               # val 개선이 30 에포크 없으면 조기 종료
+batch: 16
+optimizer: auto
+workers: 4

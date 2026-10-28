@@ -38,6 +38,7 @@ from pilldet.config import N_FOLDS, get_paths  # noqa: E402
 from pilldet.data import list_test_images, load_clean_annotations  # noqa: E402
 from pilldet.evaluate import coco_map  # noqa: E402
 from pilldet.predict import predict_images  # noqa: E402
+from pilldet.preprocess import preprocess_of  # noqa: E402
 from pilldet.submission import load_submission_spec, to_submission, validate_submission  # noqa: E402
 from pilldet.train import best_epoch, load_config, snapshot_mismatches, train  # noqa: E402
 
@@ -118,6 +119,10 @@ def main():
     class_map = pd.read_csv(P.out / "class_map.csv")
     gt_all = load_clean_annotations(P.out / "annotations_clean.json")
     imgsz = cfg.get("imgsz", 640)
+    # 전처리 데이터셋(data_fold0_clahe.yaml)으로 학습했으면 val·테스트 예측에도 같은 전처리를 적용한다
+    pre = preprocess_of(cfg["data"])
+    if pre:
+        log.info(f"      전처리 {pre}: val·테스트 이미지에도 같은 함수로 적용해 예측")
 
     # 2. val 평가 – Ultralytics와 별개로 COCO mAP를 직접 계산해 이후 앙상블·2단계 모델과 같은 기준으로 비교한다
     coco = {"mAP50_95": None, "mAP50": None, "mAP75": None, "seen_mAP50_95": None}
@@ -125,7 +130,7 @@ def main():
     if k is not None and single:
         # 1-클래스 검출기: 약 이름이 없으므로 위치만 평가한다 (모든 클래스를 0으로 통일)
         val_files = [l.strip().split("/")[-1] for l in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if l.strip()]
-        pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz)
+        pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz, preprocess=pre)
         gt_val = gt_all[gt_all["file_name"].isin(val_files)]
         coco = coco_map(pred_val.assign(category_id=0), gt_val.assign(category_id=0))
         coco.pop("per_class")
@@ -133,7 +138,7 @@ def main():
         log.info(f"[2/4] fold {k} 위치만 평가 (1-클래스): mAP50-95 {coco['mAP50_95']:.4f} | mAP50 {coco['mAP50']:.4f}")
     elif k is not None:
         val_files = [l.strip().split("/")[-1] for l in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if l.strip()]
-        pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz)
+        pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz, preprocess=pre)
         gt_val = gt_all[gt_all["file_name"].isin(val_files)]
         # 보조 진단 지표: 학습 fold에 있는 클래스만으로 다시 평가한다 (가장 어려운 "처음 보는 약"을 뺀 조건부 점수라
         # 낙관적이다). 모델 선택의 주 지표는 전체 mAP이고, 이 값은 오류를 분해해 보는 용도로만 쓴다.
@@ -153,7 +158,7 @@ def main():
         log.info("[3/4] 1-클래스 검출기 → 제출 파일 생략 (2단계 모델에서 분류기와 결합해 제출)")
     else:
         test_paths = list_test_images(P.test_img)
-        pred_test = predict_images(weights, test_paths, class_map, imgsz=imgsz)
+        pred_test = predict_images(weights, test_paths, class_map, imgsz=imgsz, preprocess=pre)
         spec = load_submission_spec(REPO_DIR / "configs" / "submission.yaml")
         sub = to_submission(pred_test, spec)
         test_sizes = {int(p.stem): Image.open(p).size for p in test_paths}

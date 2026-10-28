@@ -1,0 +1,14 @@
+2026-10-28 14:08:21 | 실험 e4_clahe_f3: YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 3
+2026-10-28 14:08:21 | 설정: {'name': 'e4_clahe_f3', 'description': 'YOLO11s, 640px, CLAHE 전처리 (LAB 밝기 채널, clip 2.0, tile 8×8), fold 3', 'model': 'yolo11s.pt', 'data': 'data_fold3_clahe.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'auto', 'workers': 4}
+2026-10-28 14:14:15 | [1/4] 학습 완료 (5.9분): 최고 에포크 63 / 93 | P 0.858 R 0.711 mAP50 0.7838 mAP50-95 0.7722
+2026-10-28 14:14:15 |       전처리 clahe: val·테스트 이미지에도 같은 함수로 적용해 예측
+2026-10-28 14:14:17 | [2/4] fold 3 COCO 평가: mAP50-95 0.7323 | mAP50 0.7473 | mAP75 0.7473 | 학습에 있는 클래스만 mAP50-95 0.9373
+2026-10-28 14:14:17 |       AP50-95 하위 5개 클래스:
+      dl_name  n_boxes  AP50_95
+동아가바펜틴정 800mg        3      0.0
+   카발린캡슐 25mg       16      0.0
+  에스원엠프정 20mg        3      0.0
+비모보정 500/20mg        6      0.0
+    카나브정 60mg        3      0.0
+2026-10-28 14:14:51 | [3/4] 제출 파일: submissions/e4_clahe_f3.csv {'rows': 10282, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 12.21, 'max_per_image': 32}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-28 14:14:51 | [4/4] 실험 기록 추가: reports/experiments.csv (24개 실험)

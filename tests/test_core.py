@@ -238,3 +238,35 @@ def test_snapshot_mismatches_catches_changed_and_default_keys(tmp_path):
     (tmp_path / "args.yaml").write_text(yaml.safe_dump(snap), encoding="utf-8")
     assert any("flipud" in d for d in snapshot_mismatches(cfg, tmp_path))
     assert snapshot_mismatches(cfg, tmp_path / "none") != []             # 기록이 없으면 불일치
+
+
+# ---------- 전처리 ----------
+def test_preprocess_of_reads_dataset_suffix():
+    from pilldet.preprocess import preprocess_of
+
+    assert preprocess_of("data_fold0_clahe.yaml") == "clahe"
+    assert preprocess_of("/abs/datasets/pill/data_full_clahe.yaml") == "clahe"
+    assert preprocess_of("data_fold0.yaml") is None
+    assert preprocess_of("data_fold0_cp.yaml") is None
+
+
+def test_clahe_keeps_shape_and_hue_and_png_roundtrip(tmp_path):
+    cv2 = pytest.importorskip("cv2")
+    from pilldet.preprocess import apply, load_bgr
+
+    rng = np.random.default_rng(0)
+    img = np.clip(rng.normal(120, 10, (64, 48, 3)), 0, 255).astype(np.uint8)  # 대비가 낮은 이미지
+    out = apply(img, "clahe")
+    assert out.shape == img.shape and out.dtype == np.uint8
+    assert out.std() > img.std()  # 국소 대비가 커진다
+    # 밝기(L) 채널만 바꾸므로 a·b(색) 채널은 거의 그대로다 (LAB↔BGR 반올림 오차만)
+    lab_in, lab_out = cv2.cvtColor(img, cv2.COLOR_BGR2LAB), cv2.cvtColor(out, cv2.COLOR_BGR2LAB)
+    assert np.abs(lab_in[..., 1:].astype(int) - lab_out[..., 1:].astype(int)).mean() < 2
+    # 학습용으로 저장한 PNG와 예측 때 그때그때 전처리한 배열이 같아야 한다 (PNG 무손실)
+    src = tmp_path / "원본.png"
+    cv2.imencode(".png", img)[1].tofile(str(src))
+    saved = tmp_path / "pre.png"
+    cv2.imencode(".png", load_bgr(src, "clahe"))[1].tofile(str(saved))
+    assert np.array_equal(load_bgr(saved), load_bgr(src, "clahe"))
+    with pytest.raises(ValueError):
+        apply(img, "unknown")

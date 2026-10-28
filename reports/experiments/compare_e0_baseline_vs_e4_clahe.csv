@@ -1,0 +1,17 @@
+﻿section,metric,e0_baseline,e4_clahe,delta,ci95_low,ci95_high,p_improve
+OOF,learnable_mAP50_95,0.9405,0.9514,0.0109,,,
+OOF,learnable_mAP50,0.9601,0.9682,0.0081,,,
+OOF,oof_mAP50_95,0.6214,0.6286,0.0072,,,
+OOF,oof_mAP50,0.6344,0.6397,0.0053,,,
+fold 0,learnable_mAP50_95,0.9846,0.9808,-0.0038,,,
+fold 0,oof_mAP50_95,0.8354,0.8322,-0.0032,,,
+fold 1,learnable_mAP50_95,0.978,0.9818,0.0038,,,
+fold 1,oof_mAP50_95,0.8891,0.8925,0.0034,,,
+fold 2,learnable_mAP50_95,0.9525,0.9534,0.0009,,,
+fold 2,oof_mAP50_95,0.9197,0.9206,0.0009,,,
+fold 3,learnable_mAP50_95,0.9471,0.9373,-0.0098,,,
+fold 3,oof_mAP50_95,0.74,0.7323,-0.0077,,,
+fold 4,learnable_mAP50_95,0.9687,0.9679,-0.0008,,,
+fold 4,oof_mAP50_95,0.8807,0.8799,-0.0008,,,
+"bootstrap (조합 114개, 1000회)",learnable_mAP50_95,,,0.0105,-0.0062,0.0267,0.869
+"bootstrap (조합 114개, 1000회)",oof_mAP50_95,,,0.0077,-0.0046,0.0202,0.87
