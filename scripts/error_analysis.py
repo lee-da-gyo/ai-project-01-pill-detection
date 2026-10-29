@@ -15,8 +15,8 @@ mAP 한 숫자를 나눠서 "어디서 점수를 잃는가"를 본다.
     python scripts/error_analysis.py --conf 0.25 0.5       # 실패 유형 신뢰도 임계값 (첫 값이 주 결과, 나머지는 민감도)
 
 산출물
-    reports/experiments/error_per_class.csv, error_per_iou.csv, error_types.csv, error_confusions.csv, error_gt_boxes.csv,
-                          error_unknown_scores.csv, error_unknown_summary.csv
+    reports/experiments/error_per_class.csv, error_per_iou.csv, error_types.csv, error_by_model.csv, error_confusions.csv,
+                        error_gt_boxes.csv, error_failure_cases.csv, error_unknown_scores.csv, error_unknown_summary.csv
     reports/figures/20_per_class_ap.png, 21_error_types.png, 22_failure_cases.png, 23_test_predictions.png
 """
 
@@ -47,7 +47,7 @@ from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
 from pilldet.evaluate import GT_TYPES, PRED_TYPES, classify_errors, coco_map  # noqa: E402
 from pilldet.viz import save_fig, setup_korean_font  # noqa: E402
 
-LEARN, UNSEEN = "학습 가능 37종", "처음 보는 19종"
+LEARN, UNSEEN, BG = "학습 가능 37종", "처음 보는 19종", "배경 (어느 정답과도 IoU < 0.1)"
 C_LEARN, C_UNSEEN = "#1f5fa8", "#d9822b"
 
 
@@ -76,31 +76,41 @@ def low_conf_top(pred: pd.DataFrame, boxes: pd.DataFrame) -> tuple[list, list]:
     return cls, sc
 
 
-def plot_per_class(pc: pd.DataFrame, fig_dir: Path):
-    d = pc.sort_values(["learnable", "AP50_95"], ascending=[False, False]).reset_index(drop=True)
-    fig, ax = plt.subplots(figsize=(14, 4.6))
-    colors = np.where(d["learnable"], C_LEARN, C_UNSEEN)
-    ax.bar(range(len(d)), d["AP50_95"], color=colors)
-    ax.set_xticks(range(len(d)), [short(n, 10) for n in d["dl_name"]], rotation=90, fontsize=6.5)
-    ax.set_ylabel("AP50-95 (OOF)")
-    ax.set_ylim(0, 1.05)
-    n_l = int(d["learnable"].sum())
-    ax.axvline(n_l - 0.5, color="gray", ls=":", lw=1)
-    ax.text(n_l / 2, 1.0, f"{LEARN}: 평균 {d.loc[d.learnable, 'AP50_95'].mean():.3f}", ha="center", fontsize=9, color=C_LEARN)
-    ax.text(n_l + (len(d) - n_l) / 2, 1.0, f"{UNSEEN}: 검증 때 학습에 없음 → AP 0", ha="center", fontsize=9, color=C_UNSEEN)
-    ax.set_title("클래스별 AP50-95 (11s+11m WBF, 5-Fold OOF)", fontsize=11)
+def plot_per_class(pc: pd.DataFrame, fig_dir: Path, n_low: int = 10):
+    """본문용: 37종 중 AP 하위 n_low종을 약 이름 전체와 함께 가로 막대로 보여 준다 (56종 전체는 부록 표)."""
+    lp = pc[pc.learnable].sort_values("AP50_95")
+    d = lp.head(n_low).iloc[::-1]
+    fig, ax = plt.subplots(figsize=(10, 0.42 * n_low + 1.3))
+    ax.barh(range(len(d)), d["AP50_95"], color=C_LEARN, height=0.65, label="AP50-95")
+    ax.scatter(d["AP50"], range(len(d)), color="black", marker="|", s=140, zorder=3, label="AP50")
+    for i, (v, n) in enumerate(zip(d["AP50_95"], d["n_gt"])):
+        ax.text(max(v, d["AP50"].iloc[i]) + 0.015, i, f"{v:.3f}  (정답 박스 {n})", va="center", fontsize=10)
+    ax.set_yticks(range(len(d)), d["dl_name"], fontsize=10.5)
+    ax.set_xlim(0, 1.3)
+    ax.set_xticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    med = lp["AP50_95"].median()
+    ax.axvline(med, color="gray", ls=":", lw=1)
+    ax.text(med, len(d) - 0.4, f" 37종 중앙값 {med:.3f}", fontsize=9.5, color="gray")
+    ax.set_xlabel("AP (5-Fold OOF)", fontsize=10.5)
+    ax.legend(fontsize=9.5, loc="lower right", frameon=False)
+    n_un = int((~pc.learnable).sum())
+    ax.set_title(f"학습 가능 37종 중 AP50-95 하위 {n_low}종 (11s+11m WBF)\n"
+                 f"처음 보는 {n_un}종은 검증 때 학습에 없어 모두 AP 0 · 56종 전체는 부록 A", fontsize=11.5)
     ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
     save_fig(fig, fig_dir, "20_per_class_ap")
     plt.close(fig)
 
 
 def plot_error_types(gtb: pd.DataFrame, pb: pd.DataFrame, per_iou: pd.DataFrame, conf: float, fig_dir: Path):
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.2), gridspec_kw={"width_ratios": [1, 1, 1.1]})
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.8), gridspec_kw={"width_ratios": [1, 1, 1.1]})
+    n_bg = int((pb.group == BG).sum())
+    pb = pb[pb.group != BG]  # 배경 예측은 어느 약 그룹에도 속하지 않아 제목에 개수만 적는다
     gt_colors = {"정답": "#3c8d40", "위치 오류": "#e0b100", "분류 오류": "#c0392b", "놓침": "#7f8c8d"}
     pred_colors = {"정답 매칭": "#3c8d40", "중복": "#9b59b6", "다른 약 위 오분류": "#c0392b", "위치 부정확": "#e0b100",
                    "배경": "#7f8c8d"}
     for ax, df, types, cols, title in [(axes[0], gtb, GT_TYPES, gt_colors, f"정답 박스 기준 (신뢰도 ≥ {conf})"),
-                                       (axes[1], pb, PRED_TYPES, pred_colors, f"예측 박스 기준 (신뢰도 ≥ {conf})")]:
+                                       (axes[1], pb, PRED_TYPES, pred_colors, f"예측 박스 기준 (신뢰도 ≥ {conf}, 배경 오탐 {n_bg}개 별도)")]:
         tab = pd.crosstab(df["group"], df["type"], normalize="index").reindex(index=[LEARN, UNSEEN], columns=types, fill_value=0)
         cnt = pd.crosstab(df["group"], df["type"]).reindex(index=[LEARN, UNSEEN], columns=types, fill_value=0)
         left = np.zeros(len(tab))
@@ -108,14 +118,14 @@ def plot_error_types(gtb: pd.DataFrame, pb: pd.DataFrame, per_iou: pd.DataFrame,
             ax.barh(range(len(tab)), tab[t], left=left, color=cols[t], label=t)
             for i, (v, c) in enumerate(zip(tab[t], cnt[t])):
                 if v >= 0.06:
-                    ax.text(left[i] + v / 2, i, f"{c}", ha="center", va="center", color="white", fontsize=8.5)
+                    ax.text(left[i] + v / 2, i, f"{c}", ha="center", va="center", color="white", fontsize=10.5)
             left += tab[t].to_numpy()
-        ax.set_yticks(range(len(tab)), [f"{g}\n(n={cnt.loc[g].sum()})" for g in tab.index], fontsize=8.5)
+        ax.set_yticks(range(len(tab)), [f"{g}\n(n={cnt.loc[g].sum()})" for g in tab.index], fontsize=10)
         ax.invert_yaxis()
         ax.set_xlim(0, 1)
-        ax.set_xlabel("비율 (막대 안 숫자는 개수)")
-        ax.set_title(title, fontsize=10)
-        ax.legend(fontsize=7.5, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.2), frameon=False)
+        ax.set_xlabel("비율 (막대 안 숫자는 개수)", fontsize=10)
+        ax.set_title(title, fontsize=11)
+        ax.legend(fontsize=9.5, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.2), frameon=False)
         ax.spines[["top", "right"]].set_visible(False)
     ax = axes[2]
     singles = [c for c in per_iou.columns if c not in ("iou", "mAP")]
@@ -123,12 +133,12 @@ def plot_error_types(gtb: pd.DataFrame, pb: pd.DataFrame, per_iou: pd.DataFrame,
         ax.plot(per_iou["iou"], per_iou[c], "s--", color=color, ms=3.5, lw=1, label=c)
     ax.plot(per_iou["iou"], per_iou["mAP"], "o-", color=C_LEARN, label="앙상블 (WBF)")
     for x, y in zip(per_iou["iou"], per_iou["mAP"]):
-        ax.text(x, y + 0.012, f"{y:.3f}", ha="center", fontsize=6.5, color=C_LEARN)
-    ax.set_xlabel("IoU 임계값")
-    ax.set_ylabel("mAP (학습 가능 37종)")
+        ax.text(x, y + 0.012, f"{y:.3f}", ha="center", fontsize=8, color=C_LEARN)
+    ax.set_xlabel("IoU 임계값", fontsize=10)
+    ax.set_ylabel("mAP (학습 가능 37종)", fontsize=10)
     ax.set_ylim(0.75, 1.0)
-    ax.legend(fontsize=7.5, loc="lower left", frameon=False)
-    ax.set_title("IoU 임계값별 mAP: 위치 정밀도", fontsize=10)
+    ax.legend(fontsize=9.5, loc="lower left", frameon=False)
+    ax.set_title("IoU 임계값별 mAP: 위치 정밀도", fontsize=11)
     ax.grid(alpha=0.3)
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
@@ -149,40 +159,49 @@ def crop_panel(ax, img_dir: Path, r: pd.Series, pred: pd.DataFrame, names: dict,
                 (pred.y < r.y + r.h) & (pred.y + pred.h > r.y)].sort_values("score", ascending=False).head(2)
     for _, p in near.iterrows():
         ax.add_patch(patches.Rectangle((p.x - x1, p.y - y1), p.w, p.h, fill=False, ec="red", lw=1.6, ls="--"))
-    ax.set_title(title, fontsize=7.2)
+    if title:
+        ax.set_title(title, fontsize=7.2)
     ax.axis("off")
 
 
-def plot_failures(gtb: pd.DataFrame, pred: pd.DataFrame, names: dict, img_dir: Path, conf: float, fig_dir: Path):
+def plot_failures(gtb: pd.DataFrame, pred: pd.DataFrame, names: dict, img_dir: Path, conf: float,
+                  fig_dir: Path) -> pd.DataFrame:
+    """패널에는 번호만 크게 적고, 약 이름·신뢰도·IoU·파일은 함께 반환하는 표(보고서 표 8-4)에 전부 적는다."""
     # 같은 약·같은 혼동이 한 줄을 다 채우지 않도록 (실제, 예측) 쌍마다 신뢰도가 가장 높은 사례 하나만 쓴다
-    mis = gtb[gtb.type == "분류 오류"].sort_values("pred_score", ascending=False).drop_duplicates(["category_id", "pred_category_id"])
+    mis = (gtb[gtb.type == "분류 오류"].sort_values("pred_score", ascending=False)
+           .drop_duplicates(["category_id", "pred_category_id"]))
     miss = gtb[(gtb.group == LEARN) & (gtb.type == "놓침")].drop_duplicates("category_id")
     rows = [("학습 가능한 약의 분류 오류 (신뢰도 높은 순)", mis[mis.group == LEARN]),
             ("처음 보는 약의 분류 오류 (신뢰도 높은 순)", mis[mis.group == UNSEEN]),
-            (f"학습 가능한 약의 놓침 (신뢰도 {conf} 미만, 약마다 하나)", miss)]
+            (f"학습 가능한 약의 놓침 (신뢰도 {conf} 이상 예측 없음, 약마다 하나)", miss)]
     rows = [(t, d.head(4)) for t, d in rows if len(d)]
-    fig = plt.figure(figsize=(12, 3.6 * len(rows)))
+    fig = plt.figure(figsize=(12, 3.4 * len(rows)))
     subfigs = np.atleast_1d(fig.subfigures(len(rows), 1))
     p = pred[pred.score >= conf]
+    cases, no = [], 0
     for (title, d), sf in zip(rows, subfigs):
         ax_row = sf.subplots(1, 4)
-        sf.subplots_adjust(top=0.78, bottom=0.02, wspace=0.15)
-        sf.suptitle(title, x=0.01, y=0.99, ha="left", fontsize=10, fontweight="bold")
+        sf.subplots_adjust(top=0.86, bottom=0.02, wspace=0.12)
+        sf.suptitle(title, x=0.01, y=0.99, ha="left", fontsize=12, fontweight="bold")
         for ax, (_, r) in zip(ax_row, d.iterrows()):
-            if r.type == "분류 오류":
-                cap = f"실제 {short(names[r.category_id])}\n→ 예측 {short(names[int(r.pred_category_id)])} ({r.pred_score:.2f})"
-            elif r.type == "놓침":
-                low = (f"{short(names[int(r.low_pred_category_id)], 8)} {r.low_pred_score:.2f}"
-                       if pd.notna(r.low_pred_score) else "없음")
-                cap = f"실제 {short(names[r.category_id])}\n놓침 · 겹친 최고 예측: {low}"
+            no += 1
+            crop_panel(ax, img_dir, r, p, names, "")
+            ax.text(0.03, 0.97, str(no), transform=ax.transAxes, ha="left", va="top", fontsize=15, fontweight="bold",
+                    color="white", bbox=dict(fc="black", alpha=0.75, pad=2))
+            if r.type == "놓침":
+                pc, ps = r.low_pred_category_id, r.low_pred_score
+                note = f"신뢰도 {conf} 미만 예측 중 최고 (IoU ≥ 0.5)" if pd.notna(ps) else "겹친 예측 없음"
             else:
-                cap = f"{short(names[r.category_id])}\n{r.type}, IoU {r.best_same_iou:.2f}"
-            crop_panel(ax, img_dir, r, p, names, cap)
+                pc, ps, note = r.pred_category_id, r.pred_score, f"IoU {r.matched_iou:.2f}"
+            cases.append({"no": no, "kind": title.split(" (")[0], "true_name": names[r.category_id],
+                          "pred_name": names[int(pc)] if pd.notna(pc) else "–",
+                          "score": round(float(ps), 3) if pd.notna(ps) else np.nan, "note": note, "file_name": r.file_name})
         for ax in ax_row[len(d):]:
             ax.axis("off")
-    fig.suptitle(f"실패 사례 (초록 실선 = 정답, 빨강 점선 = 신뢰도 ≥ {conf} 예측)", fontsize=11, y=1.01)
+    fig.suptitle(f"실패 사례 (초록 실선 = 정답, 빨강 점선 = 신뢰도 ≥ {conf} 예측, 번호는 표 8-4)", fontsize=12, y=1.01)
     save_fig(fig, fig_dir, "22_failure_cases")
     plt.close(fig)
+    return pd.DataFrame(cases)
 
 
 def plot_test(sub_csv: Path, test_dir: Path, names: dict, conf: float, fig_dir: Path, n: int = 6, seed: int = 0):
@@ -205,12 +224,12 @@ def plot_test(sub_csv: Path, test_dir: Path, names: dict, conf: float, fig_dir: 
                 stacked[first] = stacked.get(first, 0) + 1
             ax.add_patch(patches.Rectangle((r.bbox_x, r.bbox_y), r.bbox_w, r.bbox_h, fill=False,
                                            ec="gold" if second else "red", lw=1.8, ls="--" if second else "-"))
-            ax.text(r.bbox_x, r.bbox_y + r.bbox_h + 30 * stacked[first] if second else max(r.bbox_y - 8, 0),
-                    f"{short(names[r.category_id], 9)} {r.score:.2f}", fontsize=6.5,
+            ax.text(r.bbox_x, r.bbox_y + r.bbox_h + 45 * stacked[first] if second else max(r.bbox_y - 8, 0),
+                    f"{short(names[r.category_id], 9)} {r.score:.2f}", fontsize=8.5,
                     bbox=dict(fc="lightyellow" if second else "white", alpha=0.9, pad=1))
         n_second = int(sum((iou[k, :k] >= 0.5).any() for k in range(len(d))))
         ax.set_title(f"test {i}.png – 신뢰도 ≥ {conf} 박스 {len(d)}개" + (f" (같은 알약의 두 번째 이름 {n_second}개)" if n_second else ""),
-                     fontsize=8.5)
+                     fontsize=10)
         ax.axis("off")
     fig.suptitle(f"테스트 예측 예시 (현재 최종 후보, 고정 시드 {seed}로 6장 무작위 선택, 정답 없음)", fontsize=11)
     fig.tight_layout()
@@ -308,11 +327,13 @@ def main():
         hit = gtb.type == "놓침"
         top = low_conf_top(pred, gtb[hit])
         gtb.loc[hit, "low_pred_category_id"], gtb.loc[hit, "low_pred_score"] = top[0], top[1]
-        pb["group"] = pb["near_gt_category_id"].map(lambda c: group_of(c) if pd.notna(c) else LEARN)
+        pb["group"] = pb["near_gt_category_id"].map(lambda c: group_of(c) if pd.notna(c) else BG)
         for kind, df, types in [("정답 박스", gtb, GT_TYPES), ("예측 박스", pb, PRED_TYPES)]:
-            for g in [LEARN, UNSEEN]:
+            for g in [LEARN, UNSEEN] + ([BG] if kind == "예측 박스" else []):
                 sub = df[df.group == g]
                 for t in types:
+                    if g == BG and t != "배경":
+                        continue
                     type_rows.append({"conf": conf, "basis": kind, "group": g, "type": t, "n": int((sub.type == t).sum()),
                                       "share": round(float((sub.type == t).mean()), 4) if len(sub) else np.nan})
         if main_gt is None:
@@ -321,8 +342,8 @@ def main():
     types.to_csv(exp_dir / "error_types.csv", index=False, encoding="utf-8-sig")
     print("\n실패 유형 (개수)\n" + types.pivot_table(index=["conf", "basis", "group"], columns="type", values="n",
                                                   aggfunc="sum").fillna(0).astype(int).to_string())
-    ok = main_gt[(main_gt.type == "정답") & (main_gt.group == LEARN)]["best_same_iou"]
-    print(f"정답 박스의 IoU (37종, 신뢰도 ≥ {args.conf[0]}): 중앙값 {ok.median():.3f}, 0.9 미만 {(ok < 0.9).mean():.1%}, "
+    ok = main_gt[(main_gt.type == "정답") & (main_gt.group == LEARN)]["matched_iou"]
+    print(f"같은 약으로 맞힌 박스의 조건부 IoU (37종, 신뢰도 ≥ {args.conf[0]}, n={len(ok)}): 중앙값 {ok.median():.3f}, 0.9 미만 {(ok < 0.9).mean():.1%}, "
           f"0.75 미만 {(ok < 0.75).mean():.1%}")
     m = main_gt[main_gt.type == "놓침"]
     print(f"놓침 {len(m)}개 중 신뢰도 {args.conf[0]} 미만의 겹친 예측이 있는 것 {int(m.low_pred_score.notna().sum())}개 · "
@@ -330,6 +351,19 @@ def main():
           f"모든 예측으로 다시 분류: {m.type_any_conf.value_counts().to_dict()}")
     main_gt.assign(dl_name=main_gt.category_id.map(names)).to_csv(exp_dir / "error_gt_boxes.csv", index=False,
                                                                     encoding="utf-8-sig")
+
+    # 단일 모델 비교 (8장 전체를 반복하지 않고 핵심 수치만): 오류 양상이 앙상블에만 해당하는지 본다
+    rob = []
+    gl = gt[gt.category_id.isin(learnable)]
+    for name, p in [("WBF " + " + ".join(args.exps), pred), *zip(args.exps, preds)]:
+        g, _ = classify_errors(p, gl, conf=args.conf[0])
+        m = coco_map(p[p.category_id.isin(learnable)], gl)
+        rob.append({"model": name, "mAP50_95_37": round(m["mAP50_95"], 4), "mAP50_37": round(m["mAP50"], 4),
+                    **{t: int((g.type == t).sum()) for t in GT_TYPES},
+                    "matched_iou_median": round(float(g.loc[g.type == "정답", "matched_iou"].median()), 4)})
+    rob = pd.DataFrame(rob)
+    rob.to_csv(exp_dir / "error_by_model.csv", index=False, encoding="utf-8-sig")
+    print(f"\n모델별 (37종, 신뢰도 ≥ {args.conf[0]})\n" + rob.to_string(index=False))
 
     # 4. 혼동 쌍
     mis = main_gt[main_gt.type == "분류 오류"]
@@ -366,8 +400,9 @@ def main():
         {"item": "최고 신뢰도 ≥ 0.9 비율", LEARN: (k.top >= 0.9).mean(), UNSEEN: (u.top >= 0.9).mean()},
         {"item": "최고 신뢰도 < 0.5 비율", LEARN: (k.top < 0.5).mean(), UNSEEN: (u.top < 0.5).mean()},
         {"item": f"두 번째 이름도 ≥ {args.conf[0]} 비율", LEARN: amb[LEARN], UNSEEN: amb[UNSEEN]},
-        {"item": "처음 보는 약 90%를 거르는 임계값", "both": float(np.quantile(u.top, 0.9))},
-        {"item": "그 임계값에서 함께 거부되는 37종 비율", LEARN: float((k.top < np.quantile(u.top, 0.9)).mean())},
+        {"item": "처음 보는 약 90%를 거르는 탐색적 operating point (같은 OOF, 운영값 아님)",
+         "both": float(np.quantile(u.top, 0.9))},
+        {"item": "그 점에서 함께 거부되는 37종 비율", LEARN: float((k.top < np.quantile(u.top, 0.9)).mean())},
         {"item": "AUROC (최고 신뢰도가 낮을수록 처음 보는 약)", "both": auroc},
         {"item": "AUROC 95% 구간 하한 (조합 단위 부트스트랩 1000회)", "both": lo},
         {"item": "AUROC 95% 구간 상한", "both": hi},
@@ -380,7 +415,8 @@ def main():
     # 6. 그림
     plot_per_class(pc, P.fig)
     plot_error_types(main_gt, main_pred, per_iou, args.conf[0], P.fig)
-    plot_failures(main_gt, pred, names, P.train_img, args.conf[0], P.fig)
+    cases = plot_failures(main_gt, pred, names, P.train_img, args.conf[0], P.fig)
+    cases.to_csv(exp_dir / "error_failure_cases.csv", index=False, encoding="utf-8-sig")
     plot_test(REPO_DIR / "submissions" / f"{args.submission}.csv", P.test_img, names, args.conf[0], P.fig)
     print("\n그림: 20_per_class_ap, 21_error_types, 22_failure_cases, 23_test_predictions")
 

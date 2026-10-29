@@ -108,6 +108,19 @@ def test_classify_errors_types():
     assert g["type"].tolist() == ["정답", "분류 오류", "놓침"]  # b.png 예측은 신뢰도 미달
     assert g.loc[1, "pred_category_id"] == 9
     assert p["type"].tolist() == ["다른 약 위 오분류", "정답 매칭", "중복", "배경"]  # 점수 내림차순
+    assert p["near_gt_category_id"].isna().tolist() == [False, False, False, True]  # 배경 예측은 어느 약에도 속하지 않는다
+
+
+def test_classify_errors_one_prediction_matches_one_gt():
+    # 겹친 두 알약 위에 예측이 하나뿐이면 정답 하나만 맞힌 것으로 센다 (예측 재사용 금지)
+    gt = pd.DataFrame({"file_name": "a.png", "category_id": [1, 2, 3], "x": [0, 5, 300], "y": [0, 0, 300],
+                       "w": 100, "h": 100, "img_w": 976, "img_h": 1280})
+    pred = pd.DataFrame({"file_name": "a.png", "category_id": [1, 3], "x": [2, 350], "y": [0, 300], "w": 100, "h": 100,
+                         "score": [0.9, 0.8]})
+    g, p = classify_errors(pred, gt, conf=0.25)
+    assert g["type"].tolist() == ["정답", "놓침", "위치 오류"]  # 예측 0은 IoU가 더 큰 정답 0에만 배정
+    assert p["type"].tolist() == ["정답 매칭", "위치 부정확"]
+    assert g.loc[2, "matched_iou"] == pytest.approx(50 / 150)
 
 
 def test_limit_per_image_keeps_top_unique():
