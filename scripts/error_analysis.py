@@ -42,7 +42,7 @@ sys.path.insert(0, str(REPO_DIR / "scripts"))
 from analyze_oof import load_oof  # noqa: E402
 from pilldet.boxes import iou_matrix, to_xyxy  # noqa: E402
 from pilldet.config import get_paths  # noqa: E402
-from pilldet.data import load_clean_annotations  # noqa: E402
+from pilldet.data import combo_of, load_clean_annotations  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
 from pilldet.evaluate import GT_TYPES, PRED_TYPES, classify_errors, coco_map  # noqa: E402
 from pilldet.viz import save_fig, setup_korean_font  # noqa: E402
@@ -339,6 +339,15 @@ def main():
     sc.to_csv(exp_dir / "error_unknown_scores.csv", index=False, encoding="utf-8-sig")
     u, k = sc[sc.group == UNSEEN], sc[sc.group == LEARN]
     auroc = roc_auc_score(sc.group == UNSEEN, -sc.top)
+    # 같은 조합의 사진(1~3장)은 독립 표본이 아니므로 조합 단위로 다시 뽑아 95% 구간을 낸다
+    sc["combo"] = gt["file_name"].map(combo_of).to_numpy()
+    by_combo = dict(tuple(sc.groupby("combo")))
+    combos, rng, boot = list(by_combo), np.random.default_rng(0), []
+    for _ in range(1000):
+        b = pd.concat([by_combo[c] for c in rng.choice(combos, len(combos))])
+        if b.group.nunique() == 2:
+            boot.append(roc_auc_score(b.group == UNSEEN, -b.top))
+    lo, hi = np.percentile(boot, [2.5, 97.5])
     n_o, a_o = competing_labels(pred[pred.file_name.isin(gt.file_name)], args.conf[0])
     amb = {g: float((d.second >= args.conf[0]).mean()) for g, d in [(LEARN, k), (UNSEEN, u)]}
     test = pd.read_csv(REPO_DIR / "submissions" / f"{args.submission}.csv").rename(
@@ -349,7 +358,9 @@ def main():
         {"item": "최고 신뢰도 ≥ 0.9 비율", LEARN: (k.top >= 0.9).mean(), UNSEEN: (u.top >= 0.9).mean()},
         {"item": "최고 신뢰도 < 0.5 비율", LEARN: (k.top < 0.5).mean(), UNSEEN: (u.top < 0.5).mean()},
         {"item": f"두 번째 이름도 ≥ {args.conf[0]} 비율", LEARN: amb[LEARN], UNSEEN: amb[UNSEEN]},
-        {"item": "AUROC (최고 신뢰도가 낮을수록 처음 보는 약)", LEARN: auroc, UNSEEN: auroc},
+        {"item": "AUROC (최고 신뢰도가 낮을수록 처음 보는 약)", "both": auroc},
+        {"item": "AUROC 95% 구간 하한 (조합 단위 부트스트랩 1000회)", "both": lo},
+        {"item": "AUROC 95% 구간 상한", "both": hi},
     ]).round(4)
     unk.to_csv(exp_dir / "error_unknown_summary.csv", index=False, encoding="utf-8-sig")
     print("\n신뢰도와 처음 보는 약 (OOF 정답 박스 기준)\n" + unk.to_string(index=False))
