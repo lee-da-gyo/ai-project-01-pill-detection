@@ -365,11 +365,12 @@ ai-project-01-pill-detection/
 │   ├── analyze_oof.py          # ⚙️ open-set 상한 분해 · WBF 설정 선택 · 근사 메타 검증
 │   ├── epoch_sensitivity.py    # ⚙️ 전체 학습 에포크 민감도
 │   ├── compare_oof.py          # ⚙️ 두 실험 OOF 짝지은 비교 · 조합 단위 부트스트랩
+│   ├── error_analysis.py       # ⚙️ OOF 오류 분석: 클래스별 AP · IoU별 mAP · 실패 유형 · 처음 보는 약과 신뢰도
 │   ├── train_classifier.py     # ⚙️ 분류기 3종 5-Fold 비교
 │   ├── eval_two_stage.py       # ⚙️ 2단계 모델 평가
 │   └── make_submission.py      # ⚙️ 최종 모델 WBF → 제출 파일
 ├── tests/
-│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (24개)
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (25개)
 ├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
 │   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
 │   ├── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
@@ -414,6 +415,7 @@ python scripts/epoch_sensitivity.py e0_baseline e2_yolo11m           # 전체 �
 python scripts/make_preprocessed.py --method clahe
 python scripts/run_experiment.py --config configs/e4_clahe.yaml
 python scripts/compare_oof.py e0_baseline e4_clahe
+python scripts/error_analysis.py                                     # 현재 최종 후보(11s+11m WBF) OOF 오류 분석
 
 # 최종 모델 (232장 전체 · 검증 없음 · last.pt) → 제출 파일
 python scripts/run_experiment.py --config configs/final_yolo11s.yaml

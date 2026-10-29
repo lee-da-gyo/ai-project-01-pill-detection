@@ -118,12 +118,16 @@ def plot_error_types(gtb: pd.DataFrame, pb: pd.DataFrame, per_iou: pd.DataFrame,
         ax.legend(fontsize=7.5, ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.2), frameon=False)
         ax.spines[["top", "right"]].set_visible(False)
     ax = axes[2]
-    ax.plot(per_iou["iou"], per_iou["mAP"], "o-", color=C_LEARN)
+    singles = [c for c in per_iou.columns if c not in ("iou", "mAP")]
+    for c, color in zip(singles, ["#8a92a3", "#c3c8d2"]):
+        ax.plot(per_iou["iou"], per_iou[c], "s--", color=color, ms=3.5, lw=1, label=c)
+    ax.plot(per_iou["iou"], per_iou["mAP"], "o-", color=C_LEARN, label="앙상블 (WBF)")
     for x, y in zip(per_iou["iou"], per_iou["mAP"]):
-        ax.text(x, y - 0.045, f"{y:.3f}", ha="center", fontsize=7)
+        ax.text(x, y + 0.012, f"{y:.3f}", ha="center", fontsize=6.5, color=C_LEARN)
     ax.set_xlabel("IoU 임계값")
     ax.set_ylabel("mAP (학습 가능 37종)")
-    ax.set_ylim(max(0, per_iou["mAP"].min() - 0.15), 1.02)
+    ax.set_ylim(0.75, 1.0)
+    ax.legend(fontsize=7.5, loc="lower left", frameon=False)
     ax.set_title("IoU 임계값별 mAP: 위치 정밀도", fontsize=10)
     ax.grid(alpha=0.3)
     ax.spines[["top", "right"]].set_visible(False)
@@ -284,9 +288,13 @@ def main():
     print("AP 하위 5종:\n" + lp.head(5)[["dl_name", "AP50_95", "AP50", "n_gt", "train_boxes_when_validated"]].to_string(index=False))
 
     # 2. IoU 임계값별 AP (학습 가능 37종)
-    per_iou = pd.DataFrame({"iou": list(learn["per_iou"]), "mAP": list(learn["per_iou"].values())}).round(4)
+    per_iou = pd.DataFrame({"iou": list(learn["per_iou"]), "mAP": list(learn["per_iou"].values())})
+    # 단일 모델도 같이 계산해, 앙상블 이득이 어느 IoU 임계값에서 생기는지(위치 정밀도인지 이름 맞히기인지) 본다
+    for e, p in zip(args.exps, preds):
+        per_iou[e] = list(coco_map(p[p.category_id.isin(learnable)], gt[gt.category_id.isin(learnable)])["per_iou"].values())
+    per_iou = per_iou.round(4)
     per_iou.to_csv(exp_dir / "error_per_iou.csv", index=False)
-    print("IoU별 mAP (37종): " + " ".join(f"{r.iou:.2f}:{r.mAP:.3f}" for r in per_iou.itertuples()))
+    print("IoU별 mAP (37종)\n" + per_iou.rename(columns={"mAP": "앙상블"}).to_string(index=False))
 
     # 3. 실패 유형 (주 임계값 + 민감도)
     type_rows, main_gt, main_pred = [], None, None
@@ -358,6 +366,8 @@ def main():
         {"item": "최고 신뢰도 ≥ 0.9 비율", LEARN: (k.top >= 0.9).mean(), UNSEEN: (u.top >= 0.9).mean()},
         {"item": "최고 신뢰도 < 0.5 비율", LEARN: (k.top < 0.5).mean(), UNSEEN: (u.top < 0.5).mean()},
         {"item": f"두 번째 이름도 ≥ {args.conf[0]} 비율", LEARN: amb[LEARN], UNSEEN: amb[UNSEEN]},
+        {"item": "처음 보는 약 90%를 거르는 임계값", "both": float(np.quantile(u.top, 0.9))},
+        {"item": "그 임계값에서 함께 거부되는 37종 비율", LEARN: float((k.top < np.quantile(u.top, 0.9)).mean())},
         {"item": "AUROC (최고 신뢰도가 낮을수록 처음 보는 약)", "both": auroc},
         {"item": "AUROC 95% 구간 하한 (조합 단위 부트스트랩 1000회)", "both": lo},
         {"item": "AUROC 95% 구간 상한", "both": hi},
