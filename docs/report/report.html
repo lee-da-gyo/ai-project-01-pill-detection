@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>경구약제 이미지 객체 검출 – 프로젝트 보고서</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<!-- ================= 표지 · 요약 ================= -->
+<section class="cover">
+  <div>
+    <div class="kicker">Codeit AI Sprint 15기 · 초급 프로젝트 (개인)</div>
+    <h1>경구약제 이미지 객체 검출</h1>
+    <div class="lead">사진 한 장에서 최대 4개 알약의 종류(56종)와 위치를 찾는다</div>
+    <table class="meta" style="width:auto;margin-top:14pt">
+      <tr><td>기간</td><td>2026.10.27 – 2026.11.05</td></tr>
+      <tr><td>작성</td><td>[이름] (<a href="https://github.com/lee-da-gyo">github.com/lee-da-gyo</a>)</td></tr>
+      <tr><td>저장소</td><td><a href="https://github.com/lee-da-gyo/ai-project-01-pill-detection">github.com/lee-da-gyo/ai-project-01-pill-detection</a></td></tr>
+      <tr><td>환경</td><td>Python 3.14 · PyTorch 2.11 · Ultralytics 8.4 · RTX 3060 12GB</td></tr>
+    </table>
+  </div>
+
+  <div>
+    <h3 style="margin-top:0">요약</h3>
+    <p>학습 이미지는 232장, 약은 56종이며 절반 이상이 10개 미만의 박스만 가진 롱테일 데이터다. 같은 알약 조합을 각도만 바꿔 최대 세 번(조합당 1~3장) 찍은 구조라,
+    이미지 단위로 나누면 검증 점수가 부풀려진다. 이 프로젝트는 <b>모델을 바꾸기 전에 "정직하게 재는 법"을 먼저 만들었다.</b></p>
+    <div class="kpi">
+      <div><b>10건</b><span>라벨 오류 발견·수정<br>(라벨과 독립적인 배경 분할로 감사)</span></div>
+      <div><b>0건</b><span>같은 조합의 검증 누수<br>(조합 단위 5-Fold)</span></div>
+      <div><b>0.954</b><span>현재 최종 후보의 5-Fold OOF mAP50-95<br>(37종 조건부 진단값, 단일 모델 0.941)</span></div>
+      <div><b>[Kaggle]</b><span>최종 제출 public 점수<br>(제출 후 기입)</span></div>
+    </div>
+    <ul>
+      <li><b>핵심 발견</b> – 오류는 위치가 아니라 <b>학습 때 본 적 없는 약의 이름</b>에서 나온다 (학습한 약 AP 0.985, 처음 보는 약 0.000).</li>
+      <li><b>현재 최종 후보</b> – YOLO11s + YOLO11m을 232장 전체로 학습하고 WBF(1:1, IoU 0.7)로 합친다. 설정은 5-Fold 예측으로 골랐고, fold를 하나씩 보류하는 근사 메타 검증 5회에서 모두 같은 설정이 뽑혔다.</li>
+      <li><b>기각한 시도</b> – 고해상도, YOLO26, Copy-Paste 합성, 2단계(검출+분류기), CLAHE 전처리. 각 시도의 기각 근거를 수치로 남겼다.</li>
+      <li><b>한계</b> – 한 fold에만 있는 희귀 19종은 검증 때마다 학습에 없어, 이 데이터로는 그 약들의 실제 성능을 잴 수 없다.</li>
+    </ul>
+  </div>
+
+  <div class="toc">
+    <h3>목차</h3>
+    <ol>
+      <li>문제 정의</li><li>데이터 분석 (EDA)</li><li>데이터 정제</li><li>검증 전략</li><li>모델과 실험 설계</li><li>실험 결과와 의사결정</li>
+      <li>최종 후보 모델과 제출</li><li>결과 분석</li><li>재현성과 코드 품질</li><li>업무 수행 과정</li><li>비즈니스 시사점과 한계</li><li>회고와 향후 과제</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 1. 문제 정의 ================= -->
+<h2>1. 문제 정의</h2>
+<h3>1.1 배경</h3>
+<p>헬스케어 스타트업 <b>헬스잇(Health Eat)</b>은 사용자가 복용 중인 약을 촬영하면 어떤 약인지 자동으로 알려 주는 기능을 만들고자 한다.
+약을 정확히 알아보면 <b>함께 먹으면 안 되는 약 안내</b>, 복약 기록 같은 서비스로 확장할 수 있다. 이 프로젝트는 그 첫 단계인 인식 모델을 만든다.</p>
+
+<h3>1.2 과제</h3>
+<table>
+  <tr><th style="width:22%">항목</th><th>내용</th></tr>
+  <tr><td>과제 유형</td><td>객체 검출 (Object Detection): 알약마다 약 종류(클래스)와 바운딩 박스를 함께 예측</td></tr>
+  <tr><td>입력</td><td>단색 배경 위에 알약 3~4개가 놓인 사진 (976 × 1280)</td></tr>
+  <tr><td>데이터</td><td>학습 232장 (박스 771개, 56종) · 테스트 842장 (정답 비공개, Kaggle로 채점)</td></tr>
+  <tr><td>제약</td><td>원본 공개 데이터(AI Hub 경구약제 이미지 데이터<sup class="ref">[12]</sup>의 조합 데이터) 사용 금지 · Kaggle 하루 10회 제출</td></tr>
+</table>
+
+<h3>1.3 평가 지표</h3>
+<p>주 지표는 <b>mAP@[.5:.95]</b>(이하 mAP50-95)다. IoU 0.5부터 0.95까지 10개 기준에서 AP를 평균하므로, 약 이름을 맞혔는지와 함께 <b>박스를 얼마나 정확히 그렸는지</b>까지 평가한다.
+검증에는 pycocotools<sup class="ref">[3]</sup>로 직접 계산한 COCO mAP<sup class="ref">[2]</sup>를 쓴다. 베이스라인에서 Ultralytics 내장 평가(0.834)와 직접 구현(0.835)이 일치함을 확인했고,
+덕분에 앙상블·2단계 모델처럼 Ultralytics 밖에서 만든 예측도 같은 기준으로 비교할 수 있었다.</p>
+<div class="todo">Kaggle 대회 페이지의 평가 지표와 제출 형식 확인 결과를 여기에 기입한다 (제출 형식 확인 후).</div>
+
+<!-- ================= 2. EDA ================= -->
+<h2>2. 데이터 분석 (EDA)</h2>
+<p>EDA의 목적은 그래프를 많이 그리는 것이 아니라 <b>데이터의 특성을 설계 결정으로 바꾸는 것</b>이다. 발견 6가지를 각각 하나의 결정으로 연결했다.</p>
+<table>
+  <tr><th style="width:21%">발견</th><th style="width:43%">근거</th><th>결정</th></tr>
+  <tr><td><b>데이터가 매우 적다</b></td><td>학습 232장으로 테스트 842장을 예측</td><td>COCO 사전학습 YOLO 파인튜닝</td></tr>
+  <tr><td><b>심한 클래스 불균형</b></td><td>최대 157개 vs 최소 3개 (약 50배). 56종 중 29종이 박스 10개 미만</td><td>클래스별 AP 추적, 희귀 약 보강 시도 (Copy-Paste)</td></tr>
+  <tr><td><b>사실상 1장짜리 클래스</b></td><td>17종은 같은 장면을 각도만 바꾼 3장이 전부</td><td>증강으로 맥락 다양화, 성능 측정의 한계로 명시</td></tr>
+  <tr><td><b>같은 조합을 여러 각도로</b></td><td>114개 조합을 최대 세 각도(70° / 75° / 90°)로 촬영. 실제 보유 수는 3장 40조합, 2장 38조합, 1장 36조합</td><td>2~3장인 78개 조합은 거의 같은 장면이 반복된다 → 이미지 단위 분할은 누수 → <b>조합 단위 분할</b> (4장)</td></tr>
+  <tr><td><b>고정된 배치 위치</b></td><td>박스 중심이 몇 개 슬롯에 몰려 있음</td><td>이동·모자이크 증강으로 위치 편향 방지</td></tr>
+  <tr><td><b>Train/Test 분포 차이</b></td><td>Test가 약간 어둡고(밝기 131.5 → 125.9) 대비가 큼(23.6 → 26.5)</td><td>밝기·대비 증강, CLAHE 전처리 비교 (6.5절)</td></tr>
+</table>
+<figure><img src="../../reports/figures/03_class_longtail.png" style="width:76%" alt="롱테일"><figcaption>그림 2-1. 왼쪽: 상위 10종이 박스의 49.5%를 차지하는 롱테일. 오른쪽: 17종은 단 하나의 조합에만 등장한다</figcaption></figure>
+<figure><img src="../../reports/figures/10_same_combo_angles.png" style="width:66%" alt="같은 조합"><figcaption>그림 2-2. 같은 조합을 각도만 바꿔 촬영 → 이미지 단위로 나누면 누수</figcaption></figure>
+<figure><img src="../../reports/figures/11_train_vs_test_stats.png" style="width:64%" alt="Train vs Test"><figcaption>그림 2-3. Train vs Test 밝기·대비 분포 (244×320 썸네일의 RGB 평균·표준편차)</figcaption></figure>
+
+<!-- ================= 3. 정제 ================= -->
+<h2>3. 데이터 정제</h2>
+<p>라벨이 틀렸는지 확인하려면 <b>라벨과 독립적인 기준</b>이 필요하다. 배경이 단색에 가깝다는 EDA 결과를 이용해,
+배경 차분(Lab 색 거리 + Otsu 이진화)으로 알약 영역을 분할하고 라벨과 대조했다. 또 하나의 기준은 파일명이다.
+파일명에는 조합의 약 코드가 들어 있고, 232장 중 224장에서 라벨의 약 목록과 정확히 일치했다 (나머지 8장은 모두 "라벨 하나가 빠진" 경우).</p>
+<table>
+  <tr><th style="width:17%">오류 유형</th><th style="width:38%">탐지 규칙</th><th>수정</th><th class="n">건수</th></tr>
+  <tr><td>범위 밖 박스</td><td>좌표가 이미지 밖 (x = 6567)</td><td>숫자 하나를 뺀 후보 중 라벨 없는 알약과 가장 잘 맞는 값 → x = 567</td><td class="n">1</td></tr>
+  <tr><td>엉뚱한 위치</td><td>박스 안이 배경 + 겹치지 않는 같은 크기의 라벨 없는 알약 존재</td><td>그 알약 위치로 이동</td><td class="n">1</td></tr>
+  <tr><td>누락 박스</td><td>파일명의 약 코드 중 라벨 없는 것 1개 + 라벨 없는 알약 1개</td><td>해당 코드로 박스 추가 (같은 조합 다른 각도 사진과 생김새 대조)</td><td class="n">8</td></tr>
+</table>
+<figure><img src="../../reports/figures/16_label_fixes_before_after.png" alt="라벨 수정 전후"><figcaption>그림 3-1. 라벨 수정 전후 (위: 원본, 아래: 정제. 노란 박스 = 수정·추가)</figcaption></figure>
+<div class="box warn">
+  <p><b>실패에서 배운 점</b> – 처음 만든 "빈 박스 이동" 규칙은 6건을 고쳤지만 그중 <b>5건이 오탐</b>이었다. 반투명 캡슐과 파란 알약은 분할이 잘 되지 않아 박스가 비어 보였던 것이다.
+  "원래 박스와 겹치지 않고 크기가 비슷한 알약이 따로 있다"는 조건을 더해 진짜 오류 1건만 남겼다. 자동 규칙의 결과 10건은 모두 이미지로 육안 검수했다 (<code>docs/LABEL_REVIEW.md</code>).</p>
+</div>
+<p><b>최종 무결성 검사</b> (코드로 자동 확인): 모든 이미지에서 파일명의 약 목록 = 라벨의 약 목록 · 범위 밖·크기 0·중복 박스 0 · YOLO 라벨 → 픽셀 좌표 왕복 오차 &lt; 0.001px.</p>
+
+<!-- ================= 4. 검증 전략 ================= -->
+<h2>4. 검증 전략</h2>
+<p>같은 조합의 다른 각도 사진이 학습과 검증에 나뉘어 들어가면, 모델은 거의 같은 장면을 다시 맞히는 셈이 되어 점수가 부풀려진다.
+이 프로젝트에서 가장 중요한 설계는 모델이 아니라 이 누수를 막는 분할이었다.</p>
+<ul>
+  <li>scikit-learn의 StratifiedGroupKFold<sup class="ref">[10]</sup>를 썼다.</li>
+  <li><b>Group = 조합</b>: 한 조합의 사진(1~3장)을 반드시 같은 fold에 넣는다 (누수 0건을 코드로 검사).</li>
+  <li><b>Stratify = 이미지의 가장 희귀한 클래스</b>: 희귀 약이 fold에 고르게 퍼지도록 한다.</li>
+  <li>5-Fold는 실험 비교에만 쓰고, 최종 제출 모델은 232장 <b>전체</b>로 학습한다 (7장).</li>
+</ul>
+<table>
+  <tr><th>Fold</th><th>검증 이미지</th><th>검증 조합</th><th>검증 박스</th><th>학습에 없는 약</th><th>베이스라인 mAP50-95</th></tr>
+  <tr><td class="n">0</td><td class="n">47</td><td class="n">23</td><td class="n">156</td><td class="n">5</td><td class="n">0.835</td></tr>
+  <tr><td class="n">1</td><td class="n">46</td><td class="n">22</td><td class="n">153</td><td class="n">3</td><td class="n">0.889</td></tr>
+  <tr><td class="n">2</td><td class="n">46</td><td class="n">23</td><td class="n">150</td><td class="n">1</td><td class="n">0.920</td></tr>
+  <tr><td class="n">3</td><td class="n">46</td><td class="n">22</td><td class="n">153</td><td class="n">7</td><td class="n">0.740</td></tr>
+  <tr><td class="n">4</td><td class="n">47</td><td class="n">24</td><td class="n">159</td><td class="n">3</td><td class="n">0.881</td></tr>
+  <caption>표 4-1. fold 구성과 베이스라인(YOLO11s) 점수. 처음 보는 약 수와 점수 순위가 정확히 반대다.</caption>
+</table>
+
+<h3>4.1 open-set 상한과 비교 지표</h3>
+<p>조합 단위로 나누면 한 조합에만 있는 약은 검증될 때 반드시 학습에 없다. 56종 중 <b>19종이 한 fold에만</b> 있어, 5개 fold의 검증 예측을 합친
+OOF(out-of-fold) mAP의 상한은 37/56 = <b>0.661</b>이다. 따라서 56종 OOF는 모델보다 분할 구조에 좌우된다.</p>
+<div class="box">
+  <p><b>비교 지표의 결정</b> – 모델·앙상블은 2개 이상 fold에 있는 <b>37종만으로 다시 잰 OOF</b>(이하 37종 조건부 OOF)로 비교한다.
+  어려운 희귀 19종을 정답·예측 양쪽에서 뺀 값이므로 <b>같은 조건에서 모델을 비교하는 진단값</b>이며, 56종 Kaggle 점수의 추정치가 아니다.
+  56종을 모두 학습하는 최종 모델에서 희귀 19종이 실제로 얼마나 맞을지는 이 데이터로는 잴 수 없다.</p>
+</div>
+<p>fold 하나(독립 조합 23개)로는 0.005 이하의 차이를 구분할 수 없다. 그래서 fold 0에서 빠르게 탐색하고, 최종 후보는 5-Fold로 다시 비교하는 2단계 절차를 썼다.</p>
+<figure><img src="../../reports/figures/17_fold_distribution.png" style="width:85%" alt="fold 분포"><figcaption>그림 4-1. fold별 클래스 분포</figcaption></figure>
+
+<!-- ================= 5. 모델과 실험 설계 ================= -->
+<h2>5. 모델과 실험 설계</h2>
+<h3>5.1 모델 선택</h3>
+<p>데이터가 232장뿐이라 처음부터 학습하는 모델은 맞지 않는다. COCO<sup class="ref">[2]</sup>로 사전학습된 <b>YOLO11</b>(Ultralytics)<sup class="ref">[1]</sup>을 파인튜닝했다.
+한 단계로 위치와 클래스를 함께 예측해 빠르고, 크기(n / s / m)를 바꿔 용량을 비교하기 쉽다. 약 이름만 따로 판별하는 2단계 구조를 위해서는
+분류기 3종(VGG16<sup class="ref">[7]</sup> · ResNet50<sup class="ref">[8]</sup> · EfficientNet-B0<sup class="ref">[9]</sup>)을 같은 조건에서 비교했다 (6.3절).</p>
+
+<h3>5.2 실험 원칙</h3>
+<ul>
+  <li><b>한 번에 한 가지만 바꾼다.</b> 모든 실험은 베이스라인 설정 파일을 복사해 값 하나만 바꾼다. 점수가 변하면 원인을 설명할 수 있다.</li>
+  <li><b>실험 하나 = 설정 파일 하나.</b> <code>python scripts/run_experiment.py --config configs/&lt;실험&gt;.yaml</code> 한 줄로 학습 → 평가 → 테스트 예측 → 제출 파일 검사 → 실험 기록까지 실행된다.</li>
+  <li><b>검증 데이터로 고른 값은 그 데이터로 평가하지 않는다.</b> 앙상블 설정·전처리 설정처럼 고를 것이 있으면 선택 편향을 따로 점검한다.</li>
+</ul>
+
+<h3>5.3 베이스라인 (E0)</h3>
+<p>YOLO11s · 640px · Ultralytics 기본 증강 · 100 에포크(조기 종료 30) · fold 0. mAP50-95 <b>0.835</b>, mAP50 0.847, 학습 5.7분.</p>
+<div class="row">
+  <figure><img src="../../reports/figures/e0_predictions_val.png" alt="정답 vs 예측"><figcaption>그림 5-1. 위: 정답, 아래: 예측. 위치는 모두 맞고, 처음 보는 약을 비슷한 약으로 예측</figcaption></figure>
+  <figure><img src="../../reports/figures/e0_per_class_ap.png" alt="클래스별 AP"><figcaption>그림 5-2. 클래스별 AP (빨강 = 학습에 없는 약)</figcaption></figure>
+</div>
+<table>
+  <tr><th style="width:30%">발견</th><th style="width:38%">근거</th><th>다음 결정</th></tr>
+  <tr><td>오류는 <b>위치가 아니라 처음 보는 약의 이름</b></td><td>학습한 약 AP 0.985 / 처음 보는 약 5종 AP 0.000</td><td>위치와 이름을 나눠 푸는 2단계 모델 시도</td></tr>
+  <tr><td>처음 보는 약을 <b>비슷한 약으로 확신</b></td><td>다보타민큐정 → 트루비타정 (신뢰도 0.96)</td><td>희귀 약 보강 (Copy-Paste), 서비스 설계 시사점 (11장)</td></tr>
+  <tr><td>이미지당 상위 4개 제한은 <b>손해</b></td><td>mAP50-95 0.835 → 0.822</td><td>가설 기각. 제출에는 모든 예측 유지</td></tr>
+</table>
+
+<!-- ================= 6. 실험 결과 ================= -->
+<h2>6. 실험 결과와 의사결정</h2>
+<h3>6.1 fold 0 탐색: 해상도 · 모델 크기 · 증강</h3>
+<table>
+  <tr><th class="n">ID</th><th>변경 (E0 대비 하나만)</th><th class="n">mAP50</th><th class="n">mAP50-95</th><th class="n">학습 시간</th><th>판단</th></tr>
+  <tr><td class="n">E0</td><td>베이스라인 YOLO11s · 640px</td><td class="n">0.847</td><td class="n">0.835</td><td class="n">5.7분</td><td>기준</td></tr>
+  <tr><td class="n">E1</td><td>해상도 960px</td><td class="n">0.824</td><td class="n">0.811</td><td class="n">11.6분</td><td>하락</td></tr>
+  <tr><td class="n">E1</td><td>해상도 1280px</td><td class="n">0.837</td><td class="n">0.830</td><td class="n">41.3분</td><td>개선 없음, 7배 느림</td></tr>
+  <tr><td class="n">E2</td><td>YOLO11n</td><td class="n">0.842</td><td class="n">0.823</td><td class="n">6.3분</td><td>하락</td></tr>
+  <tr class="best"><td class="n">E2</td><td>YOLO11m</td><td class="n">0.847</td><td class="n">0.839</td><td class="n">30.8분*</td><td>최고, 5-Fold 후보</td></tr>
+  <tr><td class="n">E2</td><td>YOLO26s (최신 구조)</td><td class="n">0.828</td><td class="n">0.810</td><td class="n">4.3분</td><td>하락</td></tr>
+  <tr><td class="n">E3</td><td>상하 뒤집기 증강</td><td class="n">0.847</td><td class="n">0.833</td><td class="n">5.3분</td><td>차이 없음</td></tr>
+  <tr><td class="n">E3</td><td>밝기 증강 강화 (hsv_v 0.4 → 0.6)</td><td class="n">0.847</td><td class="n">0.837</td><td class="n">5.6분</td><td>+0.002, 판단 불가</td></tr>
+  <caption>표 6-1. fold 0(47장) 결과. * 다른 학습과 GPU를 함께 쓴 구간이 있어 시간이 부풀려짐 (5-Fold에서는 fold당 8~11분).</caption>
+</table>
+<p>강한 후보들의 mAP50이 0.847로 같다. fold 0 검증에는 학습에 없는 약이 5종 있어 이 분할에서 가능한 mAP50의 최댓값이 28/33 = <b>0.848</b>이기 때문이다.
+즉 fold 0에서는 <b>이미 상한에 닿아</b> 모델 간 차이가 드러나지 않는다. 남은 여지는 박스 정밀도(mAP50-95)와 데이터 전체 활용이므로, 다음 비교는 5-Fold로 옮겼다.</p>
+
+<h3>6.2 처음 보는 약 문제: 2단계 모델</h3>
+<p>오류가 "이름"에서 나오므로 위치(알약 찾기)와 이름(약 판별)을 나눠, YOLO가 찾은 박스를 별도 분류기로 다시 판별하는 2단계 구조를 시도했다.</p>
+
+<h3>6.3 분류기 3종 비교 (5-Fold)</h3>
+<p>2단계 모델의 약 이름 판별기 후보를 <b>같은 증강·학습 설정에서 구조만 바꿔</b> 비교했다. 정답 박스를 잘라 학습한 약만으로 평가한 값이라
+실제 검출 성능이 아니라 <b>분류기 구성요소의 낙관적 진단값</b>이다.</p>
+<table>
+  <tr><th>분류기</th><th class="n">정확도</th><th class="n">F1 (macro)</th><th class="n">log loss</th><th class="n">학습 시간</th><th class="n">파라미터</th></tr>
+  <tr class="best"><td>EfficientNet-B0</td><td class="n">0.993 ± 0.008</td><td class="n">0.994 ± 0.006</td><td class="n">0.166</td><td class="n">2.1분</td><td class="n">4.1M</td></tr>
+  <tr><td>VGG16</td><td class="n">0.993 ± 0.008</td><td class="n">0.989 ± 0.015</td><td class="n">0.153</td><td class="n">5.5분</td><td class="n">134.5M</td></tr>
+  <tr><td>ResNet50</td><td class="n">0.992 ± 0.009</td><td class="n">0.987 ± 0.015</td><td class="n">0.217</td><td class="n">2.1분</td><td class="n">23.6M</td></tr>
+  <caption>표 6-2. 5-Fold 평균 ± 표준편차. 출처: reports/experiments/classifiers_f*.csv</caption>
+</table>
+<p>EfficientNet-B0을 골랐다. F1이 가장 높고 VGG16의 1/33 파라미터로 2.6배 빠르다. 그러나 YOLO 박스와 결합한 2단계 모델은
+fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 이미 <b>학습한 약은 거의 다 맞히고 있어</b> 분류기가 더할 여지가 없었고,
+처음 보는 약은 분류기도 학습한 적이 없기 때문이다. 분류기를 바꾸는 것으로는 open-set 문제를 풀 수 없다는 것이 이 실험의 결론이다.</p>
+
+<h3>6.4 효과가 없었던 시도 (음성 결과)</h3>
+<table>
+  <tr><th style="width:25%">시도</th><th class="n">결과</th><th>해석</th></tr>
+  <tr><td>Copy-Paste 합성<sup class="ref">[6]</sup> 400장</td><td class="n">0.823 (−0.012)</td><td>이 설정만 기각. 합성이 원본(185장)의 2배를 넘어 합성 특유의 경계·배경을 학습했을 가능성. 비율을 낮춘 재실험 후보</td></tr>
+  <tr><td>2단계 (검출 + 분류기)</td><td class="n">0.832 ~ 0.834</td><td>6.3절. 학습한 약은 이미 맞히고, 처음 보는 약은 분류기도 모른다</td></tr>
+  <tr><td>1-클래스 검출기 (위치만)</td><td class="n">위치 0.939</td><td>56-클래스 YOLO의 위치 성능(클래스 무시 0.962)보다 낮다 → 클래스 정보가 위치 학습에도 도움</td></tr>
+  <tr><td>이미지당 상위 4개 제한</td><td class="n">0.822 (−0.013)</td><td>mAP는 낮은 점수 예측까지 순위로 평가하므로, 잘라 내면 재현율을 잃는다</td></tr>
+  <tr><td>CLAHE 전처리</td><td class="n">fold 2↑ 3↓</td><td>6.5절. 개선이 불확실해 미채택</td></tr>
+  <caption>표 6-3. 결과는 fold 0 mAP50-95 (CLAHE는 5-Fold). 기각한 시도도 근거와 함께 남겨 같은 실험을 반복하지 않게 했다.</caption>
+</table>
+
+<h3>6.5 전처리: CLAHE 전후 비교 (5-Fold)</h3>
+<p>EDA에서 본 Train/Test 밝기 차이를 이미지마다 국소 대비를 평탄화하는 CLAHE<sup class="ref">[5]</sup>로 줄일 수 있는지 확인했다. 알약 색은 클래스를 가르는 단서이므로 LAB의 밝기 채널에만 적용했고,
+설정값은 검증 점수로 고르지 않고 OpenCV 기본값(clip 2.0, tile 8×8)으로 고정했다. 학습·검증·테스트 모두 같은 함수를 거친다.</p>
+<div class="row" style="align-items:center">
+  <figure style="flex:0 0 46%"><img src="../../reports/figures/19_clahe_before_after.png" alt="CLAHE 전후"><figcaption>그림 6-1. CLAHE 전후. 어두운 Test 이미지가 밝아지지만 배경 질감과 알약 둘레의 어두운 테두리도 강해진다</figcaption></figure>
+  <div>
+    <table>
+      <tr><th>분포 (Test − Train)</th><th class="n">원본</th><th class="n">CLAHE</th></tr>
+      <tr><td>밝기 차이</td><td class="n">−5.55</td><td class="n">−3.25</td></tr>
+      <tr><td>대비 차이</td><td class="n">+2.88</td><td class="n">+2.98</td></tr>
+    </table>
+    <p>밝기 차이는 40% 줄었지만, 대비는 Train과 Test가 함께 커져 차이가 그대로였다.</p>
+    <p><b>부트스트랩 단위</b> – 같은 조합의 사진은 서로 독립이 아니다. 분할과 같은 단위인 조합 114개를 복원 추출(1000회)<sup class="ref">[11]</sup>해 두 실험의 차이를 짝지어 계산했다.
+    이미지 단위로 뽑으면 구간이 지나치게 좁아진다.</p>
+  </div>
+</div>
+<table>
+  <tr><th>YOLO11s 5-Fold</th><th class="n">fold 0 / 1 / 2 / 3 / 4</th><th class="n">fold 평균</th><th class="n">37종 조건부 OOF</th></tr>
+  <tr><td>원본</td><td class="n">0.835 / 0.889 / 0.920 / 0.740 / 0.881</td><td class="n">0.8530</td><td class="n">0.941</td></tr>
+  <tr><td>CLAHE</td><td class="n">0.832 / 0.893 / 0.921 / 0.732 / 0.880</td><td class="n">0.8515</td><td class="n">0.951</td></tr>
+  <tr><td>차이</td><td class="n">2개 fold 상승 · 3개 fold 하락</td><td class="n">−0.0015</td><td class="n">+0.011<br>95% 구간 −0.006 ~ +0.027<br>(개선 확률 87%)</td></tr>
+  <caption>표 6-4. 출처: reports/experiments/preprocess_clahe_stats.csv, compare_e0_baseline_vs_e4_clahe.csv</caption>
+</table>
+<p><b>결정: 미채택.</b> fold 단위로는 방향이 엇갈리고, 합친 OOF의 개선도 구간이 0을 포함한다. 밝기 차이는 학습 중 HSV 증강이 이미 다루고 있어 전처리로 얻을 몫이 작았던 것으로 본다.</p>
+
+<h3>6.6 5-Fold 최종 후보 비교와 앙상블</h3>
+<table>
+  <tr><th>모델</th><th class="n">fold별 mAP50-95 (0 / 1 / 2 / 3 / 4)</th><th class="n">fold 평균 ± 표준편차</th><th class="n">OOF 56종</th><th class="n">OOF 37종 (조건부)</th></tr>
+  <tr><td>YOLO11s</td><td class="n">0.835 / 0.889 / 0.920 / 0.740 / 0.881</td><td class="n">0.853 ± 0.070</td><td class="n">0.621</td><td class="n">0.941</td></tr>
+  <tr><td>YOLO11m</td><td class="n">0.839 / 0.882 / 0.924 / 0.745 / 0.883</td><td class="n">0.855 ± 0.068</td><td class="n">0.619</td><td class="n">0.936</td></tr>
+  <tr class="best"><td>WBF 11s + 11m (1:1, IoU 0.7)</td><td class="n">–</td><td class="n">–</td><td class="n">0.630</td><td class="n">0.954</td></tr>
+  <caption>표 6-5. 출처: reports/cv_summary.csv, reports/experiments/oof_analysis.csv, wbf_oof.csv</caption>
+</table>
+<ul>
+  <li><b>YOLO11s ≈ YOLO11m</b>: fold 평균은 11m이 +0.002, 37종 OOF는 11s가 +0.004로 방향이 엇갈린다. 단일 모델이라면 2배 빠른 11s가 낫다.</li>
+  <li><b>두 모델의 WBF<sup class="ref">[4]</sup>가 단일 모델보다 좋다</b>: 37종 OOF 0.941 → 0.954 (+0.013). 두 모델의 박스를 점수로 가중 평균하므로, 크기가 다른 두 모델의 위치 오차가 서로 상쇄되었을 가능성이 있다 (따로 검증하지 않은 해석).</li>
+</ul>
+<div class="box">
+  <p><b>설정 선택 편향 점검 (근사 메타 검증)</b> – WBF의 IoU 임계값과 모델 가중치 12개 조합 중 최댓값을 같은 OOF에서 고르면 낙관적이다.
+  그래서 fold 하나를 보류하고 나머지 4개 fold로 설정을 고른 뒤 보류 fold에만 적용하는 과정을 5번 반복했다. <b>5번 모두 같은 설정(1:1, IoU 0.7)</b>이 뽑혀
+  설정 선택이 안정적이었다 (보류 예측 합산 0.954).</p>
+  <p>다만 설정을 고를 때 쓴 다른 fold의 모델은 보류 fold를 학습에 포함했으므로 완전히 격리된 추정은 아니다. 엄밀한 nested CV는 보류 fold를 뺀 4개 fold 안에서 모델을 다시 학습해야 해,
+  저장된 예측만으로는 할 수 없다. 그래서 이 결과는 "설정 선택이 안정적인가"의 근거로만 쓴다.</p>
+</div>
+
+<h3>6.7 하이퍼파라미터 · TTA</h3>
+<div class="todo">학습률 실험(R11)과 TTA 검증(R14)을 5-Fold 예측으로 진행한 뒤 결과를 기입한다.</div>
+
+<!-- ================= 7. 최종 모델 ================= -->
+<h2>7. 최종 후보 모델과 제출</h2>
+<h3>7.1 전체 데이터 학습</h3>
+<p>최종 후보 모델은 232장 <b>전체</b>로 학습한다. 이때는 검증 데이터가 학습에 포함되므로 검증 점수로 가중치를 고를 수 없다.
+검증을 끄고, 정해진 에포크만큼 학습한 <b>마지막 가중치(last.pt)</b>를 쓴다.</p>
+<p>에포크는 fold별 최고 에포크의 <b>중앙값</b>(YOLO11s 50, YOLO11m 83)으로 정했다. 데이터가 fold 학습보다 25% 많고 학습률 스케줄이 총 에포크에 묶여 있어
+최적이라는 보장은 없는 <b>휴리스틱</b>이다. 대신 fold별 학습 기록으로 민감도를 확인했다.</p>
+<table>
+  <tr><th>고정 에포크 후보</th><th class="n">YOLO11s: 최고점 대비 평균 손해</th><th class="n">YOLO11m: 최고점 대비 평균 손해</th></tr>
+  <tr><td>P25 (41 / 61)</td><td class="n">0.010</td><td class="n">0.009</td></tr>
+  <tr class="best"><td>중앙값 (50 / 83)</td><td class="n">0.011</td><td class="n">0.007</td></tr>
+  <tr><td>P75 (75 / 94)</td><td class="n">0.004*</td><td class="n">0.007*</td></tr>
+  <caption>표 7-1. * 조기 종료로 그 에포크까지 학습하지 않은 fold가 빠져 유리하게 치우친 값. 빠진 fold는 마지막 에포크에서도 0.003~0.012를 잃었다.</caption>
+</table>
+<p>어느 후보든 손해가 약 0.01로 <b>최고점 주변이 평평하다.</b> 에포크 선택이 결과를 크게 바꾸지 않으므로 재학습 없이 중앙값을 유지했다.</p>
+
+<h3>7.2 제출 후보와 결과</h3>
+<table>
+  <tr><th>제출 파일</th><th>구성</th><th class="n">근거 (37종 조건부 OOF)</th><th class="n">Kaggle public</th></tr>
+  <tr class="best"><td>final_11s_11m_wbf</td><td>YOLO11s + YOLO11m WBF (1:1, IoU 0.7)</td><td class="n">0.954</td><td class="n">[기입]</td></tr>
+  <tr><td>final_yolo11s_single</td><td>YOLO11s 단일</td><td class="n">0.941</td><td class="n">[기입]</td></tr>
+  <tr><td>final_yolo11m_single</td><td>YOLO11m 단일</td><td class="n">0.936</td><td class="n">[기입]</td></tr>
+  <caption>표 7-2. 테스트 842장 모두 예측 있음. 점수 0.5 이상 박스가 이미지당 3.6~3.7개로 학습 데이터(3~4개)와 일치.</caption>
+</table>
+<div class="todo">Kaggle 점수를 기입하고, OOF 순위와 Kaggle 순위가 일치하는지 해석을 추가한다.</div>
+
+<!-- ================= 8. 결과 분석 ================= -->
+<h2>8. 결과 분석</h2>
+<div class="todo">최종 구성의 OOF 예측으로 클래스별 AP, 혼동 사례, 실패 유형(처음 보는 약 · 비슷한 약 혼동 · 박스 위치 오차)을 분석하고, 테스트 예측 예시 그림을 넣는다.</div>
+
+<!-- ================= 9. 재현성 ================= -->
+<h2>9. 재현성과 코드 품질</h2>
+<p>노트북은 분석과 해석을, 공통 코드는 <code>src/pilldet/</code> 패키지가 맡는다. 노트북과 스크립트가 같은 함수를 불러 쓰므로 결과가 어긋나지 않는다.</p>
+<table>
+  <tr><th style="width:26%">구성</th><th>역할</th></tr>
+  <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
+  <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
+  <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 24개 (좌표 변환, 분할 누수, 평가, WBF, 제출 형식, 전처리 일치, 검사 로직)</td></tr>
+</table>
+<h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
+<ul>
+  <li><b>OOF 완전성</b>: fold 결과 파일 누락, 다른 fold 이미지 섞임, 예측 없는 이미지, 중복 행이 있으면 계산을 멈춘다.</li>
+  <li><b>학습 설정 스냅샷 대조</b>: 학습을 건너뛰고 평가만 다시 할 때 현재 설정과 학습 당시 기록(<code>args.yaml</code>)이 다르면 멈춘다. 기존 학습 20개 전부 일치 확인.</li>
+  <li><b>전처리 일치</b>: 학습용으로 저장한 이미지와 예측 때 실시간으로 전처리한 배열이 픽셀 단위로 같은지 테스트한다.</li>
+  <li><b>제출 파일 검사</b>: 컬럼 순서, 테스트에 있는 이미지 번호, 학습에 있는 약 코드, 이미지 안의 박스, 점수 범위, 중복 예측을 제출 전에 검사하고, 예측이 없는 테스트 이미지 수를 기록한다.</li>
+</ul>
+<h3>9.2 재현 명령</h3>
+<pre style="font-size:8pt;background:#f6f7f9;padding:6pt;border:1px solid var(--line)">pip install -r requirements.txt
+python scripts/prepare_data.py                      # 정제 · 변환 · 5-Fold 분할
+python scripts/run_experiment.py --config configs/e0_baseline.yaml [--fold k]
+python scripts/summarize_cv.py e0_baseline e2_yolo11m
+python scripts/analyze_oof.py e0_baseline e2_yolo11m
+python scripts/run_experiment.py --config configs/final_yolo11s.yaml   # final_yolo11m도 같은 방식
+python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 1 1 --iou-thr 0.7 --name final_11s_11m_wbf</pre>
+<p class="src">GPU 학습은 cuDNN 비결정성 때문에 같은 시드에서도 가중치가 비트 단위로 같지 않을 수 있다. 재현 기준은 5-Fold 점수가 소수 셋째 자리 수준에서 같은 것이다.</p>
+
+<!-- ================= 10. 업무 수행 ================= -->
+<h2>10. 업무 수행 과정</h2>
+<div class="todo">날짜별 타임라인(계획 대비 실제)과 업무일지 링크, 결과 검토 반영 이력(지적 → 확인 → 조치)을 정리한다.<br>발표 참여: 개인 프로젝트로 전환되어 별도 발표 순서는 없고 발표일에 출석한다. 대신 시연 영상과 주강사 1:1 진행 공유 기록을 근거로 남긴다 (진행 후 기입).</div>
+
+<!-- ================= 11. 비즈니스 ================= -->
+<h2>11. 비즈니스 시사점과 한계</h2>
+<h3>11.1 서비스에 주는 시사점</h3>
+<ul>
+  <li><b>여러 조합에서 반복 관측된 약은 높은 진단값을 보였다.</b> 37종 조건부 OOF 0.954는 37종 전체를 합친 값이며, 모든 약의 정확도를 보장하지 않는다.
+    서비스 범위를 정하려면 약별 AP와 실패 사례(8장)를 함께 봐야 한다.</li>
+  <li><b>처음 보는 약을 다른 약으로 확신하는 것이 가장 큰 위험이다.</b> 베이스라인은 학습에 없던 약을 신뢰도 0.96으로 다른 약이라고 답했다.
+    따라서 <b>신뢰도 임계값만으로는 "모르는 약"을 걸러낼 수 없다.</b> 병용 금기 안내처럼 틀린 이름이 위험으로 이어지는 기능에는
+    (1) 학습에 없는 약으로 따로 만든 검증 세트에서 거부율과 임계값을 보정하고, (2) 약 이름·각인을 사용자가 확인하는 단계를 필수로 두어야 한다.
+    현재 데이터에는 독립된 "모르는 약" 검증 세트가 없어, 이 보고서는 운영 임계값을 제시하지 않는다.</li>
+  <li><b>모델 교체보다 데이터 확보가 먼저일 가능성이 크다.</b> 해상도·구조·분류기를 바꿔도 처음 보는 약 문제는 풀리지 않았다.
+    희귀 약의 사진을 더 모으는 것이 가장 직접적인 방법으로 보이지만, 이 프로젝트에서 효과를 측정하지는 않았다.</li>
+</ul>
+<h3>11.2 한계</h3>
+<ul>
+  <li>한 fold에만 있는 희귀 19종의 실제 성능은 이 검증으로 잴 수 없다.</li>
+  <li>단색 배경·고정 촬영 환경의 데이터다. 사용자가 손으로 찍은 사진(조명, 배경, 각도)에서는 성능이 낮아질 수 있다.</li>
+  <li>근사 메타 검증은 완전히 격리된 추정이 아니며, 최종 에포크는 휴리스틱이다.</li>
+</ul>
+
+<!-- ================= 12. 회고 ================= -->
+<h2>12. 회고와 향후 과제</h2>
+<div class="todo">프로젝트 마무리 시점에 작성한다 (잘한 점, 아쉬운 점, 다음 프로젝트에 가져갈 것).</div>
+
+<h2>참고문헌</h2>
+<ol class="refs">
+  <li>G. Jocher, J. Qiu. <i>Ultralytics YOLO11</i>, 2024. https://github.com/ultralytics/ultralytics</li>
+  <li>T.-Y. Lin et al. Microsoft COCO: Common Objects in Context. <i>ECCV</i>, 2014.</li>
+  <li>COCO API (pycocotools). https://github.com/cocodataset/cocoapi</li>
+  <li>R. Solovyev, W. Wang, T. Gabruseva. Weighted boxes fusion: Ensembling boxes from different object detection models. <i>Image and Vision Computing</i> 107, 2021.</li>
+  <li>K. Zuiderveld. Contrast Limited Adaptive Histogram Equalization. <i>Graphics Gems IV</i>, Academic Press, 1994.</li>
+  <li>G. Ghiasi et al. Simple Copy-Paste is a Strong Data Augmentation Method for Instance Segmentation. <i>CVPR</i>, 2021.</li>
+  <li>K. Simonyan, A. Zisserman. Very Deep Convolutional Networks for Large-Scale Image Recognition. <i>ICLR</i>, 2015.</li>
+  <li>K. He, X. Zhang, S. Ren, J. Sun. Deep Residual Learning for Image Recognition. <i>CVPR</i>, 2016.</li>
+  <li>M. Tan, Q. V. Le. EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks. <i>ICML</i>, 2019.</li>
+  <li>F. Pedregosa et al. Scikit-learn: Machine Learning in Python. <i>JMLR</i> 12, 2011. (StratifiedGroupKFold)</li>
+  <li>B. Efron, R. J. Tibshirani. <i>An Introduction to the Bootstrap</i>. Chapman &amp; Hall, 1993.</li>
+  <li>AI Hub. 경구약제 이미지 데이터. 한국지능정보사회진흥원. https://www.aihub.or.kr (대회 규칙에 따라 원본 조합 데이터는 사용하지 않음)</li>
+</ol>
+
+</body>
+</html>
