@@ -76,7 +76,7 @@ def test_folds_keep_combo_together():
 
 
 # ---------- 후처리 · 평가 · 제출 ----------
-from pilldet.evaluate import coco_map  # noqa: E402
+from pilldet.evaluate import classify_errors, coco_map  # noqa: E402
 from pilldet.predict import limit_per_image  # noqa: E402
 from pilldet.submission import to_submission, validate_submission  # noqa: E402
 
@@ -95,6 +95,19 @@ def test_coco_map_perfect_and_wrong_class():
     assert coco_map(gt.assign(score=1.0), gt)["mAP50_95"] == pytest.approx(1.0)
     wrong = gt.assign(score=1.0, category_id=[2, 1, 2])  # 위치는 맞고 클래스만 틀림
     assert coco_map(wrong, gt)["mAP50"] == pytest.approx(0.0)
+    assert coco_map(gt.assign(score=1.0), gt)["per_iou"][0.95] == pytest.approx(1.0)
+
+
+def test_classify_errors_types():
+    gt = _gt()
+    pred = pd.DataFrame({"file_name": ["a.png", "a.png", "a.png", "a.png", "b.png"],
+                         "category_id": [1, 1, 1, 9, 1],
+                         "x": [10, 12, 700, 300, 50], "y": [10, 10, 700, 300, 60], "w": [100, 100, 50, 120, 90],
+                         "h": [100, 100, 50, 110, 80], "score": [0.9, 0.8, 0.7, 0.95, 0.1]})
+    g, p = classify_errors(pred, gt, conf=0.25)
+    assert g["type"].tolist() == ["정답", "분류 오류", "놓침"]  # b.png 예측은 신뢰도 미달
+    assert g.loc[1, "pred_category_id"] == 9
+    assert p["type"].tolist() == ["다른 약 위 오분류", "정답 매칭", "중복", "배경"]  # 점수 내림차순
 
 
 def test_limit_per_image_keeps_top_unique():
