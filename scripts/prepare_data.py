@@ -72,7 +72,7 @@ def main():
     res.fixes.to_csv(paths.out / "label_fixes.csv", index=False, encoding="utf-8-sig")
 
     # 4. 무결성 검사
-    stats = check_integrity(res.clean, train_files)
+    stats = check_integrity(res.clean, train_files, review)
     log.info(f"[3/6] 무결성 검사 통과: {stats}")
 
     # 5. 조합 단위 K-Fold

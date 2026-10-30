@@ -7,8 +7,11 @@
      처음 보는 약은 모델이 그 이름을 낼 수 없어 항상 불일치하므로 후보에서 뺀다.
 후보는 자동으로 고치지 않는다. 원본 사진과 같은 조합의 다른 각도 사진으로 확인한 뒤 configs/label_review.csv에 적는다.
 
+E 후보는 어떤 모델·앙상블 설정의 OOF를 썼는지에 따라 달라진다. 그래서 결과 파일에 출처(실험 이름, WBF 가중치·IoU,
+OOF 예측 파일의 SHA-256 앞 12자리)를 함께 적는다. 같은 출처면 같은 후보가 나온다.
+
 사용법
-    python scripts/audit_labels.py                                 # OOF: e0_baseline + e2_yolo11m WBF (IoU 0.7)
+    python scripts/audit_labels.py                                 # OOF: e0_baseline + e2_yolo11m WBF (2:1, IoU 0.7)
     python scripts/audit_labels.py --exps e0_baseline e2_yolo11m
 
 산출물
@@ -20,6 +23,7 @@ import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import argparse  # noqa: E402
+import hashlib  # noqa: E402
 import sys  # noqa: E402
 from pathlib import Path  # noqa: E402
 
@@ -32,8 +36,8 @@ sys.path.insert(0, str(REPO_DIR / "scripts"))
 
 from analyze_oof import load_oof  # noqa: E402
 from pilldet.boxes import iou_matrix, to_xyxy  # noqa: E402
-from pilldet.clean import LabelCleaner, cross_class_overlaps  # noqa: E402
-from pilldet.config import get_paths  # noqa: E402
+from pilldet.clean import LabelCleaner, cross_class_overlaps, validate_review  # noqa: E402
+from pilldet.config import N_FOLDS, get_paths  # noqa: E402
 from pilldet.data import load_annotations  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
 
@@ -82,20 +86,24 @@ def main():
                  + x["score"].astype(str) + " (라벨 약 " + x["same_class_score"].astype(str) + ")")
     cand = pd.concat([d, e], ignore_index=True)
 
-    review = pd.read_csv(REPO_DIR / "configs" / "label_review.csv")
+    review = validate_review(pd.read_csv(REPO_DIR / "configs" / "label_review.csv"))
     keys = review.set_index(["file_name", "category_id"])
     def decision(r):  # noqa: E306
         for k in [(r.file_name, r.category_id), (r.file_name, r.other_category_id)]:
             if k in keys.index:
                 row = keys.loc[k]
-                return f"{row['status']}: {row['rule']} {row['action']}"
+                return f"{row['status']}: {row['review_id']} {row['rule']} {row['action']}"
         return "기각 (육안 확인 결과 라벨이 맞음)"
     cand["name"] = cand.category_id.map(names)
     cand["other_name"] = cand.other_category_id.map(names)
     cand["review"] = [decision(r) for r in cand.itertuples()]
-    cols = ["rule", "file_name", "category_id", "name", "other_category_id", "other_name", "evidence_auto", "review"]
+    files = [P.out / "experiments" / (e if k == 0 else f"{e}_f{k}") / "val_predictions.csv" for e in args.exps for k in range(N_FOLDS)]
+    digest = hashlib.sha256(b"".join(f.read_bytes() for f in files)).hexdigest()[:12]
+    cand["audit_source"] = (f"OOF {' + '.join(args.exps)} · WBF {':'.join(f'{w:g}' for w in args.weights)}, IoU {args.iou_thr} · "
+                            f"예측 파일 {len(files)}개 sha256 {digest}")
+    cols = ["rule", "file_name", "category_id", "name", "other_category_id", "other_name", "evidence_auto", "review", "audit_source"]
     cand[cols].to_csv(P.out / "label_audit_candidates.csv", index=False, encoding="utf-8-sig")
-    print(f"OOF: {' + '.join(args.exps)} (WBF IoU {args.iou_thr}) · E 기준 신뢰도 ≥ {E_SCORE}")
+    print(f"출처: {cand['audit_source'].iloc[0] if len(cand) else '-'} · E 기준 신뢰도 ≥ {E_SCORE}")
     print(cand[["rule", "file_name", "name", "other_name", "evidence_auto", "review"]].to_string(index=False))
     print(f"\n후보 D {len(d)}개 · E {len(e)}개 → reports/label_audit_candidates.csv")
     if (np.array([r.startswith("기각") for r in cand.review])).any():
