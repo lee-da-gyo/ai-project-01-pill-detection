@@ -296,3 +296,52 @@ def test_clahe_keeps_shape_and_hue_and_png_roundtrip(tmp_path):
     assert np.array_equal(load_bgr(saved), load_bgr(src, "clahe"))
     with pytest.raises(ValueError):
         apply(img, "unknown")
+
+
+# ---------- 라벨 감사 D·E ----------
+def _review_case():
+    """같은 좌표에 두 약(1, 2)이 라벨되고 다른 알약 하나는 라벨이 없는 이미지 + 두 라벨이 뒤바뀐 이미지."""
+    from types import SimpleNamespace
+
+    from pilldet.clean import REVIEW_COLUMNS, LabelCleaner
+
+    raw = pd.DataFrame({"file_name": ["K-000001-000002_0_2_0_2_70_000_200.png"] * 2 + ["K-000003-000004_0_2_0_2_75_000_200.png"] * 2,
+                        "category_id": [1, 2, 3, 4], "x": [10, 10, 10, 300], "y": [10, 10, 10, 300], "w": 100, "h": 100,
+                        "img_w": 976, "img_h": 1280, "dl_name": ["a", "b", "c", "d"], "dl_name_en": ["a", "b", "c", "d"],
+                        "source": "original"})
+    review = pd.DataFrame([["D_duplicate", raw.file_name[0], 2, 1, "relocate", "다른 각도에서 확인", "confirmed"],
+                           ["E_swapped", raw.file_name[2], 3, 4, "swap", "다른 각도에서 확인", "confirmed"]], columns=REVIEW_COLUMNS)
+    cleaner = LabelCleaner(raw, Path("."), review=review)
+    cleaner.segs = {raw.file_name[0]: SimpleNamespace(boxes=np.array([[10, 10, 110, 110], [500, 600, 600, 700]], float)),
+                    raw.file_name[2]: SimpleNamespace(boxes=np.array([[10, 10, 110, 110], [300, 300, 400, 400]], float))}
+    return raw, cleaner
+
+
+def test_cross_class_overlaps_finds_duplicate_coordinates():
+    from pilldet.clean import cross_class_overlaps
+
+    raw, _ = _review_case()
+    d = cross_class_overlaps(raw)
+    assert d[["category_id", "other_category_id"]].values.tolist() == [[1, 2]]  # 뒤바뀐 라벨은 좌표로 잡히지 않는다
+
+
+def test_apply_review_relocates_swaps_and_is_idempotent():
+    from pilldet.clean import check_integrity, cross_class_overlaps
+
+    raw, cleaner = _review_case()
+    once = cleaner.apply_review(raw)
+    moved = once[once.category_id == 2].iloc[0]
+    assert [moved.x, moved.y, moved.w, moved.h] == [500, 600, 100, 100]  # 라벨 없는 알약으로 이동 (보정값 0)
+    assert once.set_index("category_id").loc[3, "x"] == 300 and once.set_index("category_id").loc[4, "x"] == 10
+    assert cross_class_overlaps(once).empty
+    assert len(cleaner._fixes) == 3
+    # 파이프라인은 항상 원본에서 다시 시작하므로, 같은 원본·같은 결정이면 결과와 수정 로그가 같다
+    raw2, cleaner2 = _review_case()
+    pd.testing.assert_frame_equal(cleaner2.apply_review(raw2), once)
+    assert cleaner2._fixes == cleaner._fixes
+    # 이미 고친 결과에 다시 적용해도 D는 바뀌지 않는다 (조건이 사라져 notes에 남김)
+    again = cleaner.apply_review(once)
+    assert again.loc[again.category_id == 2, ["x", "y"]].values.tolist() == [[500, 600]]
+    assert any("이미 겹치지 않음" in n for n in cleaner._notes)
+    with pytest.raises(AssertionError, match="같은 좌표"):
+        check_integrity(raw, sorted(raw.file_name.unique()))

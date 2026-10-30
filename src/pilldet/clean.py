@@ -8,7 +8,12 @@
 | A. 범위 밖 박스 | 좌표가 이미지 밖 | 숫자 하나를 뺀 후보 중 라벨 없는 알약과 IoU가 가장 큰 값 (자릿수 입력 오류 가정) |
 | B. 엉뚱한 위치 박스 | 박스 안 전경 비율 < fg_thresh, 누락 라벨이 없는 이미지, 원래 박스와 겹치지 않고 크기가 비슷한 라벨 없는 알약이 정확히 1개 | 그 알약 위치로 이동 |
 | C. 누락 박스 | 파일명의 약 코드 중 라벨 없는 코드 1개 + 라벨 없는 알약 1개 | 해당 코드로 박스 추가 |
+| D. 다른 약끼리 같은 좌표 | 한 이미지에서 다른 약 박스 쌍의 IoU ≥ 0.9 (후보만 자동 탐지) | 사람이 확인한 라벨을 라벨 없는 알약으로 이동 |
+| E. 라벨 교환 | OOF 예측과의 고신뢰 불일치 (모델 보조 사후 감사, scripts/audit_labels.py) | 사람이 확인한 두 박스의 약 코드를 맞바꿈 |
 
+A~D는 모델 예측을 쓰지 않는 데이터 내부 감사다. E는 모델 예측으로 후보를 만든 비독립 감사라서 성능 추정의 근거로 쓰지 않는다.
+D·E는 알약이 실제로 겹칠 수도 있고 모델이 틀릴 수도 있으므로 자동으로 고치지 않는다.
+원본 사진·다른 각도 사진으로 확인한 결정만 configs/label_review.csv(status=confirmed)에 적고, 그 결정만 적용한다.
 대응이 하나로 정해지지 않으면 자동 수정하지 않고 notes에 남긴다.
 """
 
@@ -24,6 +29,10 @@ from .data import expected_codes, load_rgb
 from .segment import Segmentation, segment_pills
 
 
+DUP_IOU = 0.9  # D 후보 기준: 서로 다른 약 박스가 이만큼 겹치면 같은 알약을 두 번 라벨한 것으로 의심한다
+REVIEW_COLUMNS = ["rule", "file_name", "category_id", "other_category_id", "action", "evidence", "status"]
+
+
 @dataclass
 class CleanResult:
     clean: pd.DataFrame  # 정제된 박스 테이블
@@ -34,10 +43,11 @@ class CleanResult:
 
 
 class LabelCleaner:
-    def __init__(self, raw: pd.DataFrame, img_dir: Path, fg_thresh: float = 0.15,
+    def __init__(self, raw: pd.DataFrame, img_dir: Path, review: pd.DataFrame | None = None, fg_thresh: float = 0.15,
                  match_iou: float = 0.1, contain_thresh: float = 0.5, calib_iou: float = 0.75,
                  size_ratio: tuple = (0.7, 1.4)):
         self.raw = raw.copy()
+        self.review = review if review is not None else pd.DataFrame(columns=REVIEW_COLUMNS)
         self.img_dir = Path(img_dir)
         self.fg_thresh = fg_thresh
         self.match_iou = match_iou
@@ -183,6 +193,45 @@ class LabelCleaner:
                 self._notes.append(f"C 자동 보완 불가 (누락 {miss}, 후보 {len(free)}개): {f}")
         return pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
 
+    def apply_review(self, df: pd.DataFrame) -> pd.DataFrame:
+        """D·E. 사람이 확인한 결정(configs/label_review.csv, status=confirmed)만 적용한다.
+
+        조건이 더 이상 맞지 않으면(이미 고쳐졌거나 원본이 바뀜) 적용하지 않고 notes에 남긴다 → 여러 번 실행해도 결과가 같다.
+        """
+        df = df.copy()
+        for r in self.review[self.review["status"] == "confirmed"].itertuples():
+            cid, other = int(r.category_id), int(r.other_category_id)
+            a = df.index[(df["file_name"] == r.file_name) & (df["category_id"] == cid)]
+            b = df.index[(df["file_name"] == r.file_name) & (df["category_id"] == other)]
+            if len(a) != 1 or len(b) != 1:
+                self._notes.append(f"{r.rule} 적용 불가 (박스를 찾지 못함): {r.file_name} / {cid}, {other}")
+                continue
+            a, b = a[0], b[0]
+            ra, rb = df.loc[a], df.loc[b]
+            if r.action == "relocate":
+                if iou_matrix(to_xyxy(df.loc[[a]]), to_xyxy(df.loc[[b]]))[0, 0] < DUP_IOU:
+                    self._notes.append(f"{r.rule} 적용 안 함 (이미 겹치지 않음): {r.file_name} / {cid}")
+                    continue
+                free = self.unmatched_segments(r.file_name, df[df.index != a])
+                if len(free) != 1:
+                    self._notes.append(f"{r.rule} 보류 (라벨 없는 알약 {len(free)}개): {r.file_name} / {cid}")
+                    continue
+                nb = self._calibrated(free[0], ra.img_w, ra.img_h)
+                before = [ra.x, ra.y, ra.w, ra.h]
+                df.loc[a, ["x", "y", "w", "h"]] = [nb[0], nb[1], nb[2] - nb[0], nb[3] - nb[1]]
+                df.loc[a, "source"] = "relocated"
+                self._log(r.rule, r.file_name, cid, before, df.loc[a, ["x", "y", "w", "h"]],
+                          f"{self._names.loc[other, 'dl_name']}와 같은 좌표 → 라벨 없는 알약으로 이동 (육안 확인: {r.evidence})")
+            elif r.action == "swap":
+                xa, xb = ra[["x", "y", "w", "h"]].to_numpy(float), rb[["x", "y", "w", "h"]].to_numpy(float)
+                df.loc[a, ["x", "y", "w", "h"]], df.loc[b, ["x", "y", "w", "h"]] = xb, xa
+                df.loc[[a, b], "source"] = "swapped"
+                self._log(r.rule, r.file_name, cid, xa, xb, f"{self._names.loc[other, 'dl_name']}와 라벨 교환 (육안 확인: {r.evidence})")
+                self._log(r.rule, r.file_name, other, xb, xa, f"{self._names.loc[cid, 'dl_name']}와 라벨 교환 (육안 확인: {r.evidence})")
+            else:
+                raise ValueError(f"알 수 없는 action: {r.action}")
+        return df
+
     # ---------- 전체 실행 ----------
     def run(self) -> CleanResult:
         if not self.segs:
@@ -192,7 +241,21 @@ class LabelCleaner:
         df = self.fix_out_of_bounds(self.raw, aud)
         df = self.fix_misplaced(df)
         df = self.fix_missing(df)
+        df = self.apply_review(df)
         return CleanResult(df, pd.DataFrame(self._fixes), aud, self.calib, self._notes)
+
+
+def cross_class_overlaps(df: pd.DataFrame, iou_thr: float = None) -> pd.DataFrame:
+    """D 후보: 한 이미지 안에서 서로 다른 약 박스 쌍의 IoU ≥ iou_thr. 같은 알약을 두 약으로 라벨한 흔적이다."""
+    iou_thr = DUP_IOU if iou_thr is None else iou_thr
+    rows = []
+    for f, g in df.groupby("file_name"):
+        g = g.reset_index(drop=True)
+        m = iou_matrix(to_xyxy(g), to_xyxy(g))
+        for i, j in zip(*np.where(np.triu(m, 1) >= iou_thr)):
+            rows.append({"file_name": f, "category_id": int(g.loc[i, "category_id"]),
+                         "other_category_id": int(g.loc[j, "category_id"]), "iou": round(float(m[i, j]), 3)})
+    return pd.DataFrame(rows, columns=["file_name", "category_id", "other_category_id", "iou"])
 
 
 def check_integrity(clean: pd.DataFrame, train_files: list[str]) -> dict:
@@ -203,6 +266,7 @@ def check_integrity(clean: pd.DataFrame, train_files: list[str]) -> dict:
     assert not out_of_bounds(xyxy, clean["img_w"].values, clean["img_h"].values).any(), "범위 밖 박스가 남아 있다"
     assert (clean["w"] > 0).all() and (clean["h"] > 0).all(), "크기 0 박스"
     assert not clean.duplicated(["file_name", "category_id"]).any(), "같은 이미지에 같은 클래스 중복"
+    assert cross_class_overlaps(clean).empty, "다른 약 박스가 같은 좌표에 겹쳐 있다 (D 후보 미해결)"
     mismatch = [f for f, codes in per_img.items() if list(codes) != expected_codes(f)]
     assert not mismatch, f"파일명과 라벨 불일치: {mismatch}"
     return {"images": int(clean["file_name"].nunique()), "boxes": len(clean),

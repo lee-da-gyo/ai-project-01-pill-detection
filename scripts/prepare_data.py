@@ -18,7 +18,9 @@ from pathlib import Path
 REPO_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_DIR / "src"))
 
-from pilldet.clean import LabelCleaner, check_integrity  # noqa: E402
+import pandas as pd  # noqa: E402
+
+from pilldet.clean import LabelCleaner, check_integrity, cross_class_overlaps  # noqa: E402
 from pilldet.config import N_FOLDS, SEED, get_paths  # noqa: E402
 from pilldet.data import list_train_images, load_annotations  # noqa: E402
 from pilldet.export import build_class_map, export_coco, export_yolo, verify_yolo_roundtrip  # noqa: E402
@@ -55,7 +57,12 @@ def main():
     log.info(f"[1/6] 라벨 병합: 이미지 {raw.file_name.nunique()}장, 박스 {len(raw)}개, 클래스 {raw.category_id.nunique()}개")
 
     # 2~3. 분할 + 감사 + 수정
-    cleaner = LabelCleaner(raw, paths.train_img)
+    # D 후보(다른 약끼리 같은 좌표)는 자동으로 찾고, 사람이 확인한 결정(configs/label_review.csv)만 적용한다
+    dup = cross_class_overlaps(raw)
+    log.info(f"      D 후보 (다른 약 박스 IoU ≥ 0.9): {len(dup)}쌍 {dup[['file_name', 'category_id', 'other_category_id']].values.tolist()}")
+    review = pd.read_csv(REPO_DIR / "configs" / "label_review.csv")
+    log.info(f"      사람 확인 결정: {review['status'].value_counts().to_dict()} (configs/label_review.csv)")
+    cleaner = LabelCleaner(raw, paths.train_img, review=review)
     res = cleaner.run()
     log.info(f"[2/6] 라벨 감사: 테두리 보정값 {res.calib.round(1).tolist()}")
     for r in res.fixes.itertuples():
