@@ -97,7 +97,7 @@ def main():
     def rewrite(name: str) -> str:
         lines = (P.dataset / name).read_text(encoding="utf-8").split()
         out = name.replace(".txt", f"_{m}.txt")
-        (P.dataset / out).write_text("\n".join(l.replace("./images/", f"./{m}/images/") for l in lines) + "\n",
+        (P.dataset / out).write_text("\n".join(s.replace("./images/", f"./{m}/images/") for s in lines) + "\n",
                                      encoding="utf-8")
         return out
 

@@ -11,7 +11,7 @@ mAP 한 숫자를 나눠서 "어디서 점수를 잃는가"를 본다.
 새 학습은 없다. fold별 검증 예측(val_predictions.csv)을 다시 쓴다.
 
 사용법
-    python scripts/error_analysis.py                       # 기본: e0_baseline + e2_yolo11m, WBF IoU 0.7, 1:1
+    python scripts/error_analysis.py                       # 기본: e0_baseline + e2_yolo11m, WBF IoU 0.7, 2:1
     python scripts/error_analysis.py --conf 0.25 0.5       # 실패 유형 신뢰도 임계값 (첫 값이 주 결과, 나머지는 민감도)
 
 산출물
@@ -198,7 +198,7 @@ def plot_failures(gtb: pd.DataFrame, pred: pd.DataFrame, names: dict, img_dir: P
                           "score": round(float(ps), 3) if pd.notna(ps) else np.nan, "note": note, "file_name": r.file_name})
         for ax in ax_row[len(d):]:
             ax.axis("off")
-    fig.suptitle(f"실패 사례 (초록 실선 = 정답, 빨강 점선 = 신뢰도 ≥ {conf} 예측, 번호는 표 8-4)", fontsize=12, y=1.01)
+    fig.suptitle(f"실패 사례 (초록 실선 = 정답, 빨강 점선 = 신뢰도 ≥ {conf} 예측, 번호는 표 8-4)", fontsize=12, y=1.04)
     save_fig(fig, fig_dir, "22_failure_cases")
     plt.close(fig)
     return pd.DataFrame(cases)
@@ -269,6 +269,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--exps", nargs="+", default=["e0_baseline", "e2_yolo11m"])
     ap.add_argument("--iou-thr", type=float, default=0.7, help="WBF IoU (README 7장에서 고른 값)")
+    ap.add_argument("--weights", nargs="+", type=float, default=[2, 1], help="모델별 WBF 가중치 (현재 최종 후보 11s:11m = 2:1)")
     ap.add_argument("--conf", nargs="+", type=float, default=[0.25, 0.5])
     ap.add_argument("--submission", default="final_11s_11m_wbf", help="테스트 예측 그림에 쓸 제출 파일")
     args = ap.parse_args()
@@ -285,7 +286,7 @@ def main():
     group_of = lambda c: LEARN if c in learnable else UNSEEN  # noqa: E731
 
     preds = [load_oof(e, exp_dir, folds) for e in args.exps]
-    pred = preds[0] if len(preds) == 1 else weighted_boxes_fusion(preds, None, iou_thr=args.iou_thr)
+    pred = preds[0] if len(preds) == 1 else weighted_boxes_fusion(preds, args.weights, iou_thr=args.iou_thr)
     pred = pred.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
     tag = " + ".join(args.exps) + (f" WBF IoU {args.iou_thr}" if len(preds) > 1 else "")
 

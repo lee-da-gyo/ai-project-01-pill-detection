@@ -1,0 +1,16 @@
+# e5_lr_high – E0에서 학습률 하나만 바꾼 실험 (R11 하이퍼파라미터)
+# 비교 기준: e0_baseline. E0의 optimizer=auto는 AdamW lr0=0.000167을 골랐다 (Ultralytics 규칙: 0.002 × 5 / (4 + 클래스 56))
+# → 같은 AdamW에서 학습률만 3배(0.0005)로 바꾼다.
+# 사전에 정한 판단 규칙: fold 0 mAP50-95가 E0보다 0.005 이상 높을 때만 5-Fold로 확인한다 (그 미만은 fold 하나의 잡음 범위)
+name: e5_lr_high
+description: "YOLO11s, 640px, AdamW 학습률 0.0005 (E0의 3배), fold 0"
+model: yolo11s.pt
+data: data_fold0.yaml
+imgsz: 640
+epochs: 100
+patience: 30
+batch: 16
+optimizer: AdamW
+lr0: 0.0005
+warmup_bias_lr: 0.0        # auto가 AdamW를 고를 때 함께 바꾸는 값. E0와 같게 둔다 (모멘텀은 워밍업이 매 반복 다시 정하므로 같다)
+workers: 4

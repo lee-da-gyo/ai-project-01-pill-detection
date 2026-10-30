@@ -129,7 +129,7 @@ def main():
     single = bool(cfg.get("single_cls"))
     if k is not None and single:
         # 1-클래스 검출기: 약 이름이 없으므로 위치만 평가한다 (모든 클래스를 0으로 통일)
-        val_files = [l.strip().split("/")[-1] for l in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if l.strip()]
+        val_files = [s.strip().split("/")[-1] for s in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if s.strip()]
         pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz, preprocess=pre)
         gt_val = gt_all[gt_all["file_name"].isin(val_files)]
         coco = coco_map(pred_val.assign(category_id=0), gt_val.assign(category_id=0))
@@ -137,7 +137,7 @@ def main():
         coco["seen_mAP50_95"] = None
         log.info(f"[2/4] fold {k} 위치만 평가 (1-클래스): mAP50-95 {coco['mAP50_95']:.4f} | mAP50 {coco['mAP50']:.4f}")
     elif k is not None:
-        val_files = [l.strip().split("/")[-1] for l in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if l.strip()]
+        val_files = [s.strip().split("/")[-1] for s in (P.dataset / f"fold{k}_val.txt").read_text().splitlines() if s.strip()]
         pred_val = predict_images(weights, [P.train_img / f for f in val_files], class_map, imgsz=imgsz, preprocess=pre)
         gt_val = gt_all[gt_all["file_name"].isin(val_files)]
         # 보조 진단 지표: 학습 fold에 있는 클래스만으로 다시 평가한다 (가장 어려운 "처음 보는 약"을 뺀 조건부 점수라

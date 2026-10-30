@@ -1,0 +1,13 @@
+2026-10-30 11:26:51 | 실험 e5_lr_low: YOLO11s, 640px, AdamW 학습률 0.00005 (E0의 0.3배), fold 0
+2026-10-30 11:26:51 | 설정: {'name': 'e5_lr_low', 'description': 'YOLO11s, 640px, AdamW 학습률 0.00005 (E0의 0.3배), fold 0', 'model': 'yolo11s.pt', 'data': 'data_fold0.yaml', 'imgsz': 640, 'epochs': 100, 'patience': 30, 'batch': 16, 'optimizer': 'AdamW', 'lr0': 5e-05, 'warmup_bias_lr': 0.0, 'workers': 4}
+2026-10-30 11:32:17 | [1/4] 학습 완료 (5.4분): 최고 에포크 59 / 89 | P 0.972 R 0.774 mAP50 0.8312 mAP50-95 0.8190
+2026-10-30 11:32:19 | [2/4] fold 0 COCO 평가: mAP50-95 0.8269 | mAP50 0.8408 | mAP75 0.8408 | 학습에 있는 클래스만 mAP50-95 0.9745
+2026-10-30 11:32:19 |       AP50-95 하위 5개 클래스:
+              dl_name  n_boxes  AP50_95
+                 알드린정        3      0.0
+    써스펜8시간이알서방정 650mg        3      0.0
+        다보타민큐정 10mg/병        6      0.0
+      리렉스펜정 300mg/PTP        3      0.0
+자누메트엑스알서방정 100/1000mg        3      0.0
+2026-10-30 11:32:41 | [3/4] 제출 파일: submissions/e5_lr_low.csv {'rows': 43525, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 51.69, 'max_per_image': 92}  ⚠️ 제출 형식 미확인 (configs/submission.yaml)
+2026-10-30 11:32:41 | [4/4] 실험 기록 추가: reports/experiments.csv (27개 실험)

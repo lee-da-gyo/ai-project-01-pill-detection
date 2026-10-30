@@ -2,7 +2,8 @@
 D_duplicate,K-001900-016548-019607-033009_0_2_0_2_70_000_200.png,16548,가바토파정 100mg,33009,신바로정,IoU 1.0,confirmed: D_duplicate relocate
 D_duplicate,K-003351-020238-031863_0_2_0_2_70_000_200.png,3351,일양하이트린정 2mg,20238,플라빅스정 75mg,IoU 1.0,confirmed: D_duplicate relocate
 D_duplicate,K-003351-029667-031863_0_2_0_2_70_000_200.png,3351,일양하이트린정 2mg,31863,아질렉트정(라사길린메실산염),IoU 1.0,confirmed: D_duplicate relocate
-E_model_audit,K-003351-020238-031863_0_2_0_2_70_000_200.png,20238,플라빅스정 75mg,3351,일양하이트린정 2mg,OOF 예측 일양하이트린정 2mg 0.967 (라벨 약 0.0),confirmed: D_duplicate relocate
-E_model_audit,K-003351-029667-031863_0_2_0_2_70_000_200.png,3351,일양하이트린정 2mg,31863,아질렉트정(라사길린메실산염),OOF 예측 아질렉트정(라사길린메실산염) 0.983 (라벨 약 0.0),confirmed: D_duplicate relocate
-E_model_audit,K-003483-025367-027733-035206_0_2_0_2_75_000_200.png,27733,트윈스타정 40/5mg,35206,아토젯정 10/40mg,OOF 예측 아토젯정 10/40mg 0.957 (라벨 약 0.0),confirmed: E_swapped swap
-E_model_audit,K-003483-025367-027733-035206_0_2_0_2_75_000_200.png,35206,아토젯정 10/40mg,27733,트윈스타정 40/5mg,OOF 예측 트윈스타정 40/5mg 0.981 (라벨 약 0.0),confirmed: E_swapped swap
+E_model_audit,K-001900-016548-019607-033009_0_2_0_2_70_000_200.png,16548,가바토파정 100mg,24850,놀텍정 10mg,OOF 예측 놀텍정 10mg 0.922 (라벨 약 0.0),confirmed: D_duplicate relocate
+E_model_audit,K-003351-020238-031863_0_2_0_2_70_000_200.png,20238,플라빅스정 75mg,3351,일양하이트린정 2mg,OOF 예측 일양하이트린정 2mg 0.971 (라벨 약 0.0),confirmed: D_duplicate relocate
+E_model_audit,K-003351-029667-031863_0_2_0_2_70_000_200.png,3351,일양하이트린정 2mg,31863,아질렉트정(라사길린메실산염),OOF 예측 아질렉트정(라사길린메실산염) 0.958 (라벨 약 0.0),confirmed: D_duplicate relocate
+E_model_audit,K-003483-025367-027733-035206_0_2_0_2_75_000_200.png,27733,트윈스타정 40/5mg,35206,아토젯정 10/40mg,OOF 예측 아토젯정 10/40mg 0.969 (라벨 약 0.0),confirmed: E_swapped swap
+E_model_audit,K-003483-025367-027733-035206_0_2_0_2_75_000_200.png,35206,아토젯정 10/40mg,27733,트윈스타정 40/5mg,OOF 예측 트윈스타정 40/5mg 0.974 (라벨 약 0.0),confirmed: E_swapped swap

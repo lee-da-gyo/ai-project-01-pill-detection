@@ -63,6 +63,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--exps", nargs="+", default=["e0_baseline", "e2_yolo11m"])
     ap.add_argument("--iou-thr", type=float, default=0.7)
+    ap.add_argument("--weights", nargs="+", type=float, default=[2, 1], help="모델별 WBF 가중치 (현재 최종 후보 11s:11m = 2:1)")
     args = ap.parse_args()
 
     P = get_paths(REPO_DIR)
@@ -75,7 +76,7 @@ def main():
 
     d = cross_class_overlaps(before_review).assign(rule="D_duplicate", evidence_auto=lambda x: "IoU " + x["iou"].astype(str))
     preds = [load_oof(e, P.out / "experiments", folds) for e in args.exps]
-    pred = preds[0] if len(preds) == 1 else weighted_boxes_fusion(preds, None, iou_thr=args.iou_thr)
+    pred = preds[0] if len(preds) == 1 else weighted_boxes_fusion(preds, args.weights, iou_thr=args.iou_thr)
     e = model_disagreements(pred, before_review, learnable)
     e = e.assign(rule="E_model_audit", evidence_auto=lambda x: "OOF 예측 " + x["other_category_id"].map(names) + " "
                  + x["score"].astype(str) + " (라벨 약 " + x["same_class_score"].astype(str) + ")")

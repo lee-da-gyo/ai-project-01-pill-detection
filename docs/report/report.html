@@ -26,15 +26,16 @@
     <p>학습 이미지는 232장, 약은 56종이며 절반 이상이 10개 미만의 박스만 가진 롱테일 데이터다. 같은 알약 조합을 각도만 바꿔 최대 세 번(조합당 1~3장) 찍은 구조라,
     이미지 단위로 나누면 검증 점수가 부풀려진다. 이 프로젝트는 <b>모델을 바꾸기 전에 "정직하게 재는 법"을 먼저 만들었다.</b></p>
     <div class="kpi">
-      <div><b>10건</b><span>라벨 오류 발견·수정<br>(라벨과 독립적인 배경 분할로 감사)</span></div>
+      <div><b>15건</b><span>라벨 오류 발견·수정 (14장)<br>(배경 분할 감사 10 + 오류 분석 뒤 감사 5)</span></div>
       <div><b>0건</b><span>같은 조합의 검증 누수<br>(조합 단위 5-Fold)</span></div>
-      <div><b>0.954</b><span>현재 최종 후보의 5-Fold OOF mAP50-95<br>(37종 조건부 진단값, 단일 모델 0.941)</span></div>
+      <div><b>0.964</b><span>현재 최종 후보의 5-Fold OOF mAP50-95<br>(37종 조건부 진단값, 단일 모델 0.956)</span></div>
       <div><b>[Kaggle]</b><span>최종 제출 public 점수<br>(제출 후 기입)</span></div>
     </div>
     <ul>
-      <li><b>핵심 발견</b> – 오류는 위치가 아니라 <b>학습 때 본 적 없는 약의 이름</b>에서 나온다 (학습한 약 AP 0.985, 처음 보는 약 0.000).</li>
-      <li><b>현재 최종 후보</b> – YOLO11s + YOLO11m을 232장 전체로 학습하고 WBF(1:1, IoU 0.7)로 합친다. 설정은 5-Fold 예측으로 골랐고, fold를 하나씩 보류하는 근사 메타 검증 5회에서 모두 같은 설정이 뽑혔다.</li>
-      <li><b>기각한 시도</b> – 고해상도, YOLO26, Copy-Paste 합성, 2단계(검출+분류기), CLAHE 전처리. 각 시도의 기각 근거를 수치로 남겼다.</li>
+      <li><b>핵심 발견</b> – 오류는 위치가 아니라 <b>학습 때 본 적 없는 약의 이름</b>에서 나온다 (OOF에서 학습 가능 37종의 AP50-95 중앙값 0.992, 처음 보는 19종은 사실상 0).
+        처음 보는 약의 30%는 신뢰도 0.9 이상으로 다른 약 이름을 받아, 신뢰도만으로는 걸러지지 않는다 (8.5절).</li>
+      <li><b>현재 최종 후보</b> – YOLO11s + YOLO11m을 232장 전체로 학습하고 WBF(2:1, IoU 0.7)로 합친다. 설정은 5-Fold 예측으로 골랐고, fold를 하나씩 보류하는 근사 메타 검증 5회에서 모두 2:1 가중치가 뽑혔다.</li>
+      <li><b>기각한 시도</b> – 고해상도, YOLO26, Copy-Paste 합성, 2단계(검출+분류기), CLAHE 전처리, 학습률 변경, TTA. 각 시도의 기각 근거를 수치로 남겼다.</li>
       <li><b>한계</b> – 한 fold에만 있는 희귀 19종은 검증 때마다 학습에 없어, 이 데이터로는 그 약들의 실제 성능을 잴 수 없다.</li>
     </ul>
   </div>
@@ -95,13 +96,23 @@
   <tr><td>범위 밖 박스</td><td>좌표가 이미지 밖 (x = 6567)</td><td>숫자 하나를 뺀 후보 중 라벨 없는 알약과 가장 잘 맞는 값 → x = 567</td><td class="n">1</td></tr>
   <tr><td>엉뚱한 위치</td><td>박스 안이 배경 + 겹치지 않는 같은 크기의 라벨 없는 알약 존재</td><td>그 알약 위치로 이동</td><td class="n">1</td></tr>
   <tr><td>누락 박스</td><td>파일명의 약 코드 중 라벨 없는 것 1개 + 라벨 없는 알약 1개</td><td>해당 코드로 박스 추가 (같은 조합 다른 각도 사진과 생김새 대조)</td><td class="n">8</td></tr>
+  <tr><td>다른 약끼리 같은 좌표 *</td><td>한 이미지에서 다른 약 박스 쌍의 IoU ≥ 0.9 (후보만 자동 탐지)</td><td>다른 각도 사진으로 확인한 틀린 라벨을 라벨 없는 알약으로 이동</td><td class="n">3</td></tr>
+  <tr><td>라벨 교환 *</td><td>OOF 예측이 정답과 신뢰도 0.9 이상으로 다르게 답함 (모델 보조 사후 감사)</td><td>다른 각도 사진으로 확인한 두 박스의 약 코드 교환</td><td class="n">1장 (2박스)</td></tr>
+  <caption>표 3-1. * 오류 분석(8장) 뒤에 추가한 감사. 앞의 네 유형은 모델 예측을 쓰지 않는 데이터 내부 감사이고, 라벨 교환은 모델 예측으로 후보를 만든 비독립 감사다.
+  후보는 자동으로 고치지 않고 사람이 확인한 결정(<code>configs/label_review.csv</code>)만 적용했다. 출처: reports/label_fixes.csv, label_audit_candidates.csv</caption>
 </table>
 <figure><img src="../../reports/figures/16_label_fixes_before_after.png" alt="라벨 수정 전후"><figcaption>그림 3-1. 라벨 수정 전후 (위: 원본, 아래: 정제. 노란 박스 = 수정·추가)</figcaption></figure>
 <div class="box warn">
   <p><b>실패에서 배운 점</b> – 처음 만든 "빈 박스 이동" 규칙은 6건을 고쳤지만 그중 <b>5건이 오탐</b>이었다. 반투명 캡슐과 파란 알약은 분할이 잘 되지 않아 박스가 비어 보였던 것이다.
   "원래 박스와 겹치지 않고 크기가 비슷한 알약이 따로 있다"는 조건을 더해 진짜 오류 1건만 남겼다. 자동 규칙의 결과 10건은 모두 이미지로 육안 검수했다 (<code>docs/LABEL_REVIEW.md</code>).</p>
 </div>
-<p><b>최종 무결성 검사</b> (코드로 자동 확인): 모든 이미지에서 파일명의 약 목록 = 라벨의 약 목록 · 범위 밖·크기 0·중복 박스 0 · YOLO 라벨 → 픽셀 좌표 왕복 오차 &lt; 0.001px.</p>
+<div class="box warn">
+  <p><b>처음 정제가 놓친 오류</b> – 처음 무결성 검사는 "같은 약 박스의 중복"만 확인해, <b>다른 약 두 개가 같은 좌표에 라벨된 경우</b>를 통과시켰다.
+  8장의 오류 분석에서 "학습한 약을 신뢰도 0.96~0.98로 틀렸다"고 나온 사례를 원본과 대조하다가, 실제로는 모델이 맞고 라벨이 틀린 4장을 찾았다.
+  4장을 고친 뒤 <b>5-Fold와 최종 모델을 모두 다시 학습</b>했고, 이 보고서의 5-Fold·OOF·제출 수치는 수정된 라벨 기준이다.
+  모델 예측으로 찾은 후보는 모델이 같이 틀린 오류를 놓칠 수 있어 탐지 재현율은 알 수 없다.</p>
+</div>
+<p><b>최종 무결성 검사</b> (코드로 자동 확인): 모든 이미지에서 파일명의 약 목록 = 라벨의 약 목록 · 범위 밖·크기 0 박스 0 · 같은 약 중복 0 · 다른 약끼리 같은 좌표(IoU ≥ 0.9) 0 · YOLO 라벨 → 픽셀 좌표 왕복 오차 &lt; 0.001px.</p>
 
 <!-- ================= 4. 검증 전략 ================= -->
 <h2>4. 검증 전략</h2>
@@ -115,12 +126,12 @@
 </ul>
 <table>
   <tr><th>Fold</th><th>검증 이미지</th><th>검증 조합</th><th>검증 박스</th><th>학습에 없는 약</th><th>베이스라인 mAP50-95</th></tr>
-  <tr><td class="n">0</td><td class="n">47</td><td class="n">23</td><td class="n">156</td><td class="n">5</td><td class="n">0.835</td></tr>
-  <tr><td class="n">1</td><td class="n">46</td><td class="n">22</td><td class="n">153</td><td class="n">3</td><td class="n">0.889</td></tr>
-  <tr><td class="n">2</td><td class="n">46</td><td class="n">23</td><td class="n">150</td><td class="n">1</td><td class="n">0.920</td></tr>
-  <tr><td class="n">3</td><td class="n">46</td><td class="n">22</td><td class="n">153</td><td class="n">7</td><td class="n">0.740</td></tr>
-  <tr><td class="n">4</td><td class="n">47</td><td class="n">24</td><td class="n">159</td><td class="n">3</td><td class="n">0.881</td></tr>
-  <caption>표 4-1. fold 구성과 베이스라인(YOLO11s) 점수. 처음 보는 약 수와 점수 순위가 정확히 반대다.</caption>
+  <tr><td class="n">0</td><td class="n">47</td><td class="n">23</td><td class="n">156</td><td class="n">5</td><td class="n">0.836</td></tr>
+  <tr><td class="n">1</td><td class="n">46</td><td class="n">22</td><td class="n">153</td><td class="n">3</td><td class="n">0.900</td></tr>
+  <tr><td class="n">2</td><td class="n">46</td><td class="n">23</td><td class="n">150</td><td class="n">1</td><td class="n">0.936</td></tr>
+  <tr><td class="n">3</td><td class="n">46</td><td class="n">22</td><td class="n">153</td><td class="n">7</td><td class="n">0.763</td></tr>
+  <tr><td class="n">4</td><td class="n">47</td><td class="n">24</td><td class="n">159</td><td class="n">3</td><td class="n">0.879</td></tr>
+  <caption>표 4-1. fold 구성과 베이스라인(YOLO11s) 점수 (수정 라벨 기준). 처음 보는 약 수와 점수 순위가 정확히 반대다.</caption>
 </table>
 
 <h3>4.1 open-set 상한과 비교 지표</h3>
@@ -149,7 +160,11 @@ OOF(out-of-fold) mAP의 상한은 37/56 = <b>0.661</b>이다. 따라서 56종 OO
 </ul>
 
 <h3>5.3 베이스라인 (E0)</h3>
-<p>YOLO11s · 640px · Ultralytics 기본 증강 · 100 에포크(조기 종료 30) · fold 0. mAP50-95 <b>0.835</b>, mAP50 0.847, 학습 5.7분.</p>
+<p>YOLO11s · 640px · Ultralytics 기본 증강 · 100 에포크(조기 종료 30) · fold 0. mAP50-95 <b>0.835</b>, mAP50 0.847, 학습 5.7분.
+라벨 수정(3장) 뒤 같은 설정으로 다시 학습한 값은 0.836이다.</p>
+<div class="box"><p><b>라벨 수정 전 탐색 기록</b> – 5.3절의 그림·표와 6.1~6.4절(fold 0 탐색, 2단계, 분류기, Copy-Paste)은 오류 분석에서 라벨 오류 4장을 찾기 <b>전</b>에 한 실험이다.
+결론을 바꿀 만큼 큰 차이(0.01 이상)만 근거로 썼고, 수정 후 수치(6.5절 이후)와 직접 비교하지 않는다.
+5-Fold 비교(6.5~6.7절), 최종 모델(7장), 결과 분석(8장)은 모두 수정된 라벨로 다시 학습·평가한 값이다.</p></div>
 <div class="row">
   <figure><img src="../../reports/figures/e0_predictions_val.png" alt="정답 vs 예측"><figcaption>그림 5-1. 위: 정답, 아래: 예측. 위치는 모두 맞고, 처음 보는 약을 비슷한 약으로 예측</figcaption></figure>
   <figure><img src="../../reports/figures/e0_per_class_ap.png" alt="클래스별 AP"><figcaption>그림 5-2. 클래스별 AP (빨강 = 학습에 없는 약)</figcaption></figure>
@@ -174,7 +189,7 @@ OOF(out-of-fold) mAP의 상한은 37/56 = <b>0.661</b>이다. 따라서 56종 OO
   <tr><td class="n">E2</td><td>YOLO26s (최신 구조)</td><td class="n">0.828</td><td class="n">0.810</td><td class="n">4.3분</td><td>하락</td></tr>
   <tr><td class="n">E3</td><td>상하 뒤집기 증강</td><td class="n">0.847</td><td class="n">0.833</td><td class="n">5.3분</td><td>차이 없음</td></tr>
   <tr><td class="n">E3</td><td>밝기 증강 강화 (hsv_v 0.4 → 0.6)</td><td class="n">0.847</td><td class="n">0.837</td><td class="n">5.6분</td><td>+0.002, 판단 불가</td></tr>
-  <caption>표 6-1. fold 0(47장) 결과. * 다른 학습과 GPU를 함께 쓴 구간이 있어 시간이 부풀려짐 (5-Fold에서는 fold당 8~11분).</caption>
+  <caption>표 6-1. fold 0(47장) 결과, 라벨 수정 전 기록. * 다른 학습과 GPU를 함께 쓴 구간이 있어 시간이 부풀려짐 (5-Fold에서는 fold당 9~12분).</caption>
 </table>
 <p>강한 후보들의 mAP50이 0.847로 같다. fold 0 검증에는 학습에 없는 약이 5종 있어 이 분할에서 가능한 mAP50의 최댓값이 28/33 = <b>0.848</b>이기 때문이다.
 즉 fold 0에서는 <b>이미 상한에 닿아</b> 모델 간 차이가 드러나지 않는다. 남은 여지는 박스 정밀도(mAP50-95)와 데이터 전체 활용이므로, 다음 비교는 5-Fold로 옮겼다.</p>
@@ -203,8 +218,8 @@ fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 �
   <tr><td>2단계 (검출 + 분류기)</td><td class="n">0.832 ~ 0.834</td><td>6.3절. 학습한 약은 이미 맞히고, 처음 보는 약은 분류기도 모른다</td></tr>
   <tr><td>1-클래스 검출기 (위치만)</td><td class="n">위치 0.939</td><td>56-클래스 YOLO의 위치 성능(클래스 무시 0.962)보다 낮다 → 클래스 정보가 위치 학습에도 도움</td></tr>
   <tr><td>이미지당 상위 4개 제한</td><td class="n">0.822 (−0.013)</td><td>mAP는 낮은 점수 예측까지 순위로 평가하므로, 잘라 내면 재현율을 잃는다</td></tr>
-  <tr><td>CLAHE 전처리</td><td class="n">fold 2↑ 3↓</td><td>6.5절. 개선이 불확실해 미채택</td></tr>
-  <caption>표 6-3. 결과는 fold 0 mAP50-95 (CLAHE는 5-Fold). 기각한 시도도 근거와 함께 남겨 같은 실험을 반복하지 않게 했다.</caption>
+  <tr><td>CLAHE 전처리</td><td class="n">fold 2↑ 3↓</td><td>6.5절. 라벨 수정 전후 모두 개선이 불확실해 미채택</td></tr>
+  <caption>표 6-3. 결과는 fold 0 mAP50-95, 라벨 수정 전 기록 (CLAHE는 수정 후 5-Fold). 기각한 시도도 근거와 함께 남겨 같은 실험을 반복하지 않게 했다.</caption>
 </table>
 
 <h3>6.5 전처리: CLAHE 전후 비교 (5-Fold)</h3>
@@ -225,152 +240,192 @@ fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 �
 </div>
 <table>
   <tr><th>YOLO11s 5-Fold</th><th class="n">fold 0 / 1 / 2 / 3 / 4</th><th class="n">fold 평균</th><th class="n">37종 조건부 OOF</th></tr>
-  <tr><td>원본</td><td class="n">0.835 / 0.889 / 0.920 / 0.740 / 0.881</td><td class="n">0.8530</td><td class="n">0.941</td></tr>
-  <tr><td>CLAHE</td><td class="n">0.832 / 0.893 / 0.921 / 0.732 / 0.880</td><td class="n">0.8515</td><td class="n">0.951</td></tr>
-  <tr><td>차이</td><td class="n">2개 fold 상승 · 3개 fold 하락</td><td class="n">−0.0015</td><td class="n">+0.011<br>95% 구간 −0.006 ~ +0.027<br>(개선 확률 87%)</td></tr>
-  <caption>표 6-4. 출처: reports/experiments/preprocess_clahe_stats.csv, compare_e0_baseline_vs_e4_clahe.csv</caption>
+  <tr><td>원본</td><td class="n">0.836 / 0.900 / 0.936 / 0.763 / 0.879</td><td class="n">0.8626</td><td class="n">0.956</td></tr>
+  <tr><td>CLAHE</td><td class="n">0.833 / 0.900 / 0.943 / 0.748 / 0.886</td><td class="n">0.8618</td><td class="n">0.962</td></tr>
+  <tr><td>차이</td><td class="n">2개 fold 상승 · 3개 fold 하락</td><td class="n">−0.0008</td><td class="n">+0.005<br>95% 구간 −0.003 ~ +0.018<br>(개선 확률 88%)</td></tr>
+  <caption>표 6-4. 수정 라벨로 두 실험을 모두 다시 학습한 값 (라벨 수정 전에도 2개↑ 3개↓, 37종 OOF +0.011, 구간 −0.006 ~ +0.027로 같은 결론). 출처: reports/experiments/preprocess_clahe_stats.csv, compare_e0_baseline_vs_e4_clahe.csv</caption>
 </table>
-<p><b>결정: 미채택.</b> fold 단위로는 방향이 엇갈리고, 합친 OOF의 개선도 구간이 0을 포함한다. 밝기 차이는 학습 중 HSV 증강이 이미 다루고 있어 전처리로 얻을 몫이 작았던 것으로 본다.</p>
+<p><b>결정: 미채택.</b> fold 단위로는 방향이 엇갈리고(처음 보는 약이 가장 많은 fold 3에서 −0.015), 합친 OOF의 개선도 구간이 0을 포함한다.
+라벨을 고쳐 다시 학습해도 결론이 같았다. 밝기 차이는 학습 중 HSV 증강이 이미 다루고 있어 전처리로 얻을 몫이 작았던 것으로 본다.</p>
 
 <h3>6.6 5-Fold 최종 후보 비교와 앙상블</h3>
 <table>
   <tr><th>모델</th><th class="n">fold별 mAP50-95 (0 / 1 / 2 / 3 / 4)</th><th class="n">fold 평균 ± 표준편차</th><th class="n">OOF 56종</th><th class="n">OOF 37종 (조건부)</th></tr>
-  <tr><td>YOLO11s</td><td class="n">0.835 / 0.889 / 0.920 / 0.740 / 0.881</td><td class="n">0.853 ± 0.070</td><td class="n">0.621</td><td class="n">0.941</td></tr>
-  <tr><td>YOLO11m</td><td class="n">0.839 / 0.882 / 0.924 / 0.745 / 0.883</td><td class="n">0.855 ± 0.068</td><td class="n">0.619</td><td class="n">0.936</td></tr>
-  <tr class="best"><td>WBF 11s + 11m (1:1, IoU 0.7)</td><td class="n">–</td><td class="n">–</td><td class="n">0.630</td><td class="n">0.954</td></tr>
-  <caption>표 6-5. 출처: reports/cv_summary.csv, reports/experiments/oof_analysis.csv, wbf_oof.csv</caption>
+  <tr><td>YOLO11s</td><td class="n">0.836 / 0.900 / 0.936 / 0.763 / 0.879</td><td class="n">0.863 ± 0.067</td><td class="n">0.634</td><td class="n">0.956</td></tr>
+  <tr><td>YOLO11m</td><td class="n">0.837 / 0.900 / 0.924 / 0.732 / 0.884</td><td class="n">0.855 ± 0.076</td><td class="n">0.622</td><td class="n">0.941</td></tr>
+  <tr class="best"><td>WBF 11s + 11m (2:1, IoU 0.7)</td><td class="n">–</td><td class="n">–</td><td class="n">0.639</td><td class="n">0.964</td></tr>
+  <caption>표 6-5. 수정 라벨 기준. 출처: reports/cv_summary.csv, reports/experiments/oof_analysis.csv, wbf_oof.csv</caption>
 </table>
 <ul>
-  <li><b>YOLO11s ≈ YOLO11m</b>: fold 평균은 11m이 +0.002, 37종 OOF는 11s가 +0.004로 방향이 엇갈린다. 단일 모델이라면 2배 빠른 11s가 낫다.</li>
-  <li><b>두 모델의 WBF<sup class="ref">[4]</sup>가 단일 모델보다 좋다</b>: 37종 OOF 0.941 → 0.954 (+0.013). 8.2절에서 나눠 보면 이득의 약 절반은 IoU 0.95에서의 위치 개선(박스 좌표 평균), 나머지는 분류 오류 감소에서 나왔다.</li>
+  <li><b>단일 모델로는 YOLO11s가 낫다</b>: fold 평균(+0.007)과 37종 OOF(+0.015) 모두 11s가 높고, 학습도 약 1.5배 빠르다. 라벨 수정 전에는 두 지표의 방향이 엇갈렸다.</li>
+  <li><b>두 모델의 WBF<sup class="ref">[4]</sup>는 단일 최고보다 높다</b>: 37종 OOF 0.956 → 0.964 (+0.008). 8.2절에서 IoU별로 나누면 차이의 약 절반(0.004)이 IoU 0.95 한 곳에서 관찰된다.
+    박스 좌표 평균이 위치를 다듬는다는 가설과 맞지만, 고정 신뢰도에서 센 실패 유형은 mAP의 가법 분해가 아니므로 원인으로 단정하지 않는다.</li>
 </ul>
 <div class="box">
   <p><b>설정 선택 편향 점검 (근사 메타 검증)</b> – WBF의 IoU 임계값과 모델 가중치 12개 조합 중 최댓값을 같은 OOF에서 고르면 낙관적이다.
-  그래서 fold 하나를 보류하고 나머지 4개 fold로 설정을 고른 뒤 보류 fold에만 적용하는 과정을 5번 반복했다. <b>5번 모두 같은 설정(1:1, IoU 0.7)</b>이 뽑혀
-  설정 선택이 안정적이었다 (보류 예측 합산 0.954).</p>
+  그래서 fold 하나를 보류하고 나머지 4개 fold로 설정을 고른 뒤 보류 fold에만 적용하는 과정을 5번 반복했다. <b>가중치는 5번 모두 2:1</b>, IoU는 0.7이 3번 · 0.6이 2번 뽑혔고
+  보류 예측 합산은 0.963으로 전체 OOF 최댓값(0.964)과 거의 같았다. 최종 설정은 같은 규칙으로 전체 OOF에서 고른 2:1, IoU 0.7이다.</p>
+  <p>라벨 수정 전에는 같은 절차가 1:1을 골랐다. 절차를 고정하고 결과를 따랐으며, 1:1과 2:1의 차이(0.002)는 결론을 바꿀 크기가 아니다.</p>
   <p>다만 설정을 고를 때 쓴 다른 fold의 모델은 보류 fold를 학습에 포함했으므로 완전히 격리된 추정은 아니다. 엄밀한 nested CV는 보류 fold를 뺀 4개 fold 안에서 모델을 다시 학습해야 해,
   저장된 예측만으로는 할 수 없다. 그래서 이 결과는 "설정 선택이 안정적인가"의 근거로만 쓴다.</p>
 </div>
 
 <h3>6.7 하이퍼파라미터 · TTA</h3>
-<div class="todo">학습률 실험(R11)과 TTA 검증(R14)을 5-Fold 예측으로 진행한 뒤 결과를 기입한다.</div>
+<p><b>학습률 (R11)</b> – <code>optimizer=auto</code>가 실제로 고른 값(AdamW, lr0 0.000167)을 기준으로 학습률 하나만 바꿔 fold 0에서 비교했다.
+판단 규칙은 실행 전에 설정 파일에 적어 두었다: "E0보다 0.005 이상 좋을 때만 5-Fold로 확인한다."</p>
+<table>
+  <tr><th>학습률</th><th class="n">fold 0 mAP50-95</th><th class="n">E0 대비</th><th>판단</th></tr>
+  <tr><td>0.000167 (auto, E0)</td><td class="n">0.8356</td><td class="n">–</td><td>기준</td></tr>
+  <tr><td>0.0005 (3배)</td><td class="n">0.8381</td><td class="n">+0.0025</td><td>사전 기준(+0.005) 미달 → 5-Fold 생략</td></tr>
+  <tr><td>0.00005 (0.3배)</td><td class="n">0.8269</td><td class="n">−0.0087</td><td>하락</td></tr>
+  <caption>표 6-6. 수정 라벨 기준. 출처: configs/e5_lr_high.yaml, e5_lr_low.yaml, reports/experiments.csv</caption>
+</table>
+<p>auto 값을 유지했다. fold 하나(독립 조합 23개)로는 0.005 이하의 차이를 구분할 수 없으므로, 3배의 +0.0025는 개선 근거로 쓰지 않는다. 배치 크기는 실험하지 않았다.</p>
+<p><b>TTA (R14)</b> – 다시 학습하지 않고, 이미 학습한 5-Fold 모델로 검증 예측만 TTA(좌우 뒤집기 + 0.83 · 0.67배 축소, Ultralytics 기본)로 다시 만들어
+기준 예측과 짝지어 비교했다. fold k 모델은 fold k 이미지만 예측하므로 학습 때와 같은 누수 없는 OOF다 (<code>scripts/predict_oof.py</code>).</p>
+<table>
+  <tr><th>37종 조건부 OOF</th><th class="n">TTA 없음</th><th class="n">TTA</th><th class="n">차이 (조합 부트스트랩 95% 구간)</th><th class="n">fold별</th><th class="n">개선 확률</th></tr>
+  <tr><td>YOLO11s</td><td class="n">0.956</td><td class="n">0.952</td><td class="n">−0.004 (−0.011 ~ +0.002)</td><td class="n">3개↑ 2개↓</td><td class="n">9%</td></tr>
+  <tr><td>YOLO11m</td><td class="n">0.941</td><td class="n">0.936</td><td class="n">−0.005 (−0.010 ~ +0.002)</td><td class="n">1개↑ 4개↓</td><td class="n">11%</td></tr>
+  <caption>표 6-7. 출처: reports/experiments/compare_e0_baseline_vs_e0_baseline_tta.csv, compare_e2_yolo11m_vs_e2_yolo11m_tta.csv</caption>
+</table>
+<p><b>결정: 미채택.</b> 두 모델 모두 합친 OOF가 내려갔고 개선 확률은 10% 안팎이다. 고정된 카메라로 비슷한 크기의 알약을 찍은 데이터라
+축소 변환이 학습 분포에 없는 크기를 만들고, 합쳐진 박스가 가장 엄격한 IoU에서 정밀도를 잃었을 수 있다 (확인하지 않은 가설).</p>
 
 <!-- ================= 7. 최종 모델 ================= -->
 <h2>7. 최종 후보 모델과 제출</h2>
 <h3>7.1 전체 데이터 학습</h3>
 <p>최종 후보 모델은 232장 <b>전체</b>로 학습한다. 이때는 검증 데이터가 학습에 포함되므로 검증 점수로 가중치를 고를 수 없다.
 검증을 끄고, 정해진 에포크만큼 학습한 <b>마지막 가중치(last.pt)</b>를 쓴다.</p>
-<p>에포크는 fold별 최고 에포크의 <b>중앙값</b>(YOLO11s 50, YOLO11m 83)으로 정했다. 데이터가 fold 학습보다 25% 많고 학습률 스케줄이 총 에포크에 묶여 있어
+<p>에포크는 fold별 최고 에포크의 <b>중앙값</b>으로 정했다 (수정 라벨 기준 YOLO11s 80/81/86/26/59 → 80, YOLO11m 80/90/50/44/80 → 80. 수정 전에는 50 · 83). 데이터가 fold 학습보다 25% 많고 학습률 스케줄이 총 에포크에 묶여 있어
 최적이라는 보장은 없는 <b>휴리스틱</b>이다. 대신 fold별 학습 기록으로 민감도를 확인했다.</p>
 <table>
   <tr><th>고정 에포크 후보</th><th class="n">YOLO11s: 최고점 대비 평균 손해</th><th class="n">YOLO11m: 최고점 대비 평균 손해</th></tr>
-  <tr><td>P25 (41 / 61)</td><td class="n">0.010</td><td class="n">0.009</td></tr>
-  <tr class="best"><td>중앙값 (50 / 83)</td><td class="n">0.011</td><td class="n">0.007</td></tr>
-  <tr><td>P75 (75 / 94)</td><td class="n">0.004*</td><td class="n">0.007*</td></tr>
-  <caption>표 7-1. * 조기 종료로 그 에포크까지 학습하지 않은 fold가 빠져 유리하게 치우친 값. 빠진 fold는 마지막 에포크에서도 0.003~0.012를 잃었다.</caption>
+  <tr><td>P25 (59 / 50)</td><td class="n">0.006*</td><td class="n">0.011</td></tr>
+  <tr class="best"><td>중앙값 (80 / 80)</td><td class="n">0.003*</td><td class="n">0.001*</td></tr>
+  <tr><td>P75 (81 / 80)</td><td class="n">0.004*</td><td class="n">0.001*</td></tr>
+  <caption>표 7-1. * 조기 종료로 그 에포크까지 학습하지 않은 fold(주로 처음 보는 약이 7종인 fold 3)가 빠져 유리하게 치우친 값. 출처: epoch_sensitivity.csv</caption>
 </table>
-<p>어느 후보든 손해가 약 0.01로 <b>최고점 주변이 평평하다.</b> 에포크 선택이 결과를 크게 바꾸지 않으므로 재학습 없이 중앙값을 유지했다.</p>
+<p>중앙값에서의 평균 손해는 0.003 이하로 <b>최고점 주변이 평평하다.</b> 다만 fold 3은 26~44 에포크에서 최고였다가 조기 종료되어, 처음 보는 약이 많은 분할에서는 더 짧은 학습이 나았을 수 있다.
+전체 데이터 학습은 모든 약을 학습하므로 중앙값을 그대로 썼다.</p>
 
 <h3>7.2 제출 후보와 결과</h3>
 <table>
   <tr><th>제출 파일</th><th>구성</th><th class="n">근거 (37종 조건부 OOF)</th><th class="n">Kaggle public</th></tr>
-  <tr class="best"><td>final_11s_11m_wbf</td><td>YOLO11s + YOLO11m WBF (1:1, IoU 0.7)</td><td class="n">0.954</td><td class="n">[기입]</td></tr>
-  <tr><td>final_yolo11s_single</td><td>YOLO11s 단일</td><td class="n">0.941</td><td class="n">[기입]</td></tr>
-  <tr><td>final_yolo11m_single</td><td>YOLO11m 단일</td><td class="n">0.936</td><td class="n">[기입]</td></tr>
+  <tr class="best"><td>final_11s_11m_wbf</td><td>YOLO11s + YOLO11m WBF (2:1, IoU 0.7)</td><td class="n">0.964</td><td class="n">[기입]</td></tr>
+  <tr><td>final_yolo11s_single</td><td>YOLO11s 단일</td><td class="n">0.956</td><td class="n">[기입]</td></tr>
+  <tr><td>final_yolo11m_single</td><td>YOLO11m 단일</td><td class="n">0.941</td><td class="n">[기입]</td></tr>
   <caption>표 7-2. 테스트 842장 모두 예측 있음. 점수 0.5 이상 박스가 이미지당 3.6~3.7개로 학습 데이터(3~4개)와 일치.</caption>
 </table>
 <div class="todo">Kaggle 점수를 기입하고, OOF 순위와 Kaggle 순위가 일치하는지 해석을 추가한다.</div>
 
 <!-- ================= 8. 결과 분석 ================= -->
 <h2>8. 결과 분석</h2>
-<p>현재 최종 후보와 같은 구성(YOLO11s + YOLO11m, WBF 1:1, IoU 0.7)의 5-Fold OOF 예측 232장을 다시 나눠 보았다. 새로 학습한 것은 없다.
+<p>현재 최종 후보와 같은 구성(YOLO11s + YOLO11m, WBF 2:1, IoU 0.7)의 5-Fold OOF 예측 232장을 다시 나눠 보았다. 새로 학습한 것은 없다.
 목적은 mAP 한 숫자 뒤에서 <b>어디서 점수를 잃는지</b> 찾는 것이다. 출처: <code>scripts/error_analysis.py</code>, <code>reports/experiments/error_*.csv</code>.</p>
+<div class="box warn"><p><b>이 분석이 데이터를 고쳤다</b> – 처음 이 장을 썼을 때는 "학습한 약끼리도 신뢰도 0.96~0.98로 틀린다"는 결론이 있었다.
+그 사례를 원본과 대조하자 4장 중 4장 모두 모델이 맞고 라벨이 틀렸다 (3장의 감사 D·E). 라벨을 고쳐 전체를 다시 학습했고, 그 결론은 <b>철회</b>했다.
+아래 수치는 모두 수정된 라벨 기준이다.</p></div>
 
 <h3>8.1 클래스별 AP</h3>
-<figure><img src="../../reports/figures/20_per_class_ap.png" style="width:100%">
-<figcaption>그림 8-1. 클래스별 AP50-95. 파랑은 2개 이상 fold에 있는 37종, 주황은 한 fold에만 있어 검증 때 항상 학습에 없는 19종이다.</figcaption></figure>
-<p>37종의 AP50-95 중앙값은 <b>0.991</b>이고, 28종은 AP50이 1.0이다. 0.9 미만은 5종뿐이다.</p>
+<figure><img src="../../reports/figures/20_per_class_ap.png" style="width:82%">
+<figcaption>그림 8-1. 학습 가능 37종 중 AP50-95 하위 10종. 56종 전체 값은 부록 A.</figcaption></figure>
+<p>37종의 AP50-95 중앙값은 <b>0.992</b>이고, 28종은 AP50이 1.0이다. 0.9 미만은 4종뿐이다. 처음 보는 19종은 검증될 때 학습에 없어 18종이 0이다. 동아가바펜틴정만 0.135인데, 학습하지 않은 클래스 출력이 낸 신뢰도 0.003 미만의 예측 몇 개가 우연히 그 알약 위에 놓인 결과다 (누수 아님, 같은 fold에 이 약의 학습 박스 없음).</p>
 <table>
   <tr><th>AP 하위 (37종 안)</th><th class="n">AP50-95</th><th class="n">AP50</th><th class="n">정답 박스</th><th class="n">검증 때 학습 박스 (평균)</th></tr>
-  <tr><td>보령부스파정 5mg</td><td class="n">0.556</td><td class="n">0.564</td><td class="n">15</td><td class="n">8.4</td></tr>
-  <tr><td>트라젠타듀오정 2.5/850mg</td><td class="n">0.643</td><td class="n">0.663</td><td class="n">9</td><td class="n">4.0</td></tr>
-  <tr><td>트윈스타정 40/5mg</td><td class="n">0.849</td><td class="n">0.849</td><td class="n">12</td><td class="n">4.5</td></tr>
-  <tr><td>뮤테란캡슐 100mg</td><td class="n">0.895</td><td class="n">1.000</td><td class="n">9</td><td class="n">4.0</td></tr>
-  <tr><td>에어탈정(아세클로페낙)</td><td class="n">0.900</td><td class="n">1.000</td><td class="n">6</td><td class="n">3.0</td></tr>
+  <tr><td>트라젠타듀오정 2.5/850mg</td><td class="n">0.663</td><td class="n">0.663</td><td class="n">9</td><td class="n">4.0</td></tr>
+  <tr><td>보령부스파정 5mg</td><td class="n">0.749</td><td class="n">0.773</td><td class="n">15</td><td class="n">8.4</td></tr>
+  <tr><td>에어탈정(아세클로페낙)</td><td class="n">0.867</td><td class="n">1.000</td><td class="n">6</td><td class="n">3.0</td></tr>
+  <tr><td>아토르바정 10mg</td><td class="n">0.884</td><td class="n">0.901</td><td class="n">22</td><td class="n">16.9</td></tr>
+  <tr><td>콜리네이트연질캡슐 400mg</td><td class="n">0.923</td><td class="n">1.000</td><td class="n">17</td><td class="n">13.3</td></tr>
   <caption>표 8-1. "검증 때 학습 박스"는 그 박스가 검증될 때 나머지 fold에 있던 같은 약의 박스 수. 출처: error_per_class.csv</caption>
 </table>
-<p>학습 박스 수와 AP의 순위 상관은 ρ = −0.08(n = 37, 참고값)로, <b>37종 안에서는 학습 사진 수가 AP 차이를 설명하지 못했다.</b>
-하위 약의 실패는 8.3~8.4의 사례처럼 비슷하게 생긴 다른 약과의 혼동과 낮은 신뢰도에서 나왔다.
-특히 보령부스파정은 자기 사진을 낮은 신뢰도로 놓친 경우(12개 중 7개)에 더해, 처음 보는 다른 약 5개가 보령부스파정으로 예측되어 그 클래스의 오탐이 되었다.
-처음 보는 약이 학습한 약의 AP까지 깎는 경로가 있다는 뜻이다.</p>
+<p>학습 박스 수와 AP 사이에는 <b>단조 관계가 관찰되지 않았다</b> (Spearman ρ = −0.05, n = 37, 탐색적). 22박스나 있는 아토르바정도 하위권이다.
+하위 약의 손실은 비슷하게 생긴 다른 약과의 혼동, 그리고 다른 약의 오탐에서 나왔다. 보령부스파정은 자기 박스 15개 중 11개를 맞혔지만,
+<b>처음 보는 약 5박스</b>(아빌리파이정 3, 졸로푸트정 2)가 보령부스파정으로 예측되어 이 클래스의 오탐이 되었다. 처음 보는 약이 학습한 약의 AP까지 깎는 경로다.</p>
 
 <h3>8.2 위치 정밀도: IoU 임계값별 mAP</h3>
 <table>
   <tr><th>37종 mAP</th><th class="n">IoU 0.50</th><th class="n">0.75</th><th class="n">0.90</th><th class="n">0.95</th><th class="n">50-95 평균</th></tr>
-  <tr><td>YOLO11s</td><td class="n">0.960</td><td class="n">0.958</td><td class="n">0.940</td><td class="n">0.803</td><td class="n">0.941</td></tr>
-  <tr><td>YOLO11m</td><td class="n">0.952</td><td class="n">0.949</td><td class="n">0.937</td><td class="n">0.831</td><td class="n">0.936</td></tr>
-  <tr class="best"><td>WBF 11s + 11m</td><td class="n">0.967</td><td class="n">0.964</td><td class="n">0.951</td><td class="n">0.865</td><td class="n">0.954</td></tr>
+  <tr><td>YOLO11s</td><td class="n">0.975</td><td class="n">0.972</td><td class="n">0.947</td><td class="n">0.832</td><td class="n">0.956</td></tr>
+  <tr><td>YOLO11m</td><td class="n">0.960</td><td class="n">0.957</td><td class="n">0.944</td><td class="n">0.806</td><td class="n">0.941</td></tr>
+  <tr class="best"><td>WBF 11s + 11m (2:1)</td><td class="n">0.978</td><td class="n">0.975</td><td class="n">0.962</td><td class="n">0.870</td><td class="n">0.964</td></tr>
   <caption>표 8-2. 출처: error_per_iou.csv</caption>
 </table>
 <ul>
-  <li><b>37종의 박스 위치는 거의 정확하다.</b> 맞힌 박스의 IoU 중앙값은 0.974이고, mAP는 IoU 0.90까지 0.95 이상을 유지하다가 0.95에서야 떨어진다.
-    따라서 37종에서 잃는 점수의 대부분은 위치가 아니라 <b>이름(분류)과 신뢰도</b>에서 나온다.</li>
-  <li><b>앙상블 이득의 출처</b>: 11s 대비 +0.013 중 절반가량(0.006)이 IoU 0.95 한 곳(+0.062)에서 나오고, 나머지는 모든 임계값에 고르게 붙은 +0.007이다.
-    앞의 것은 박스 좌표 평균에 의한 위치 개선, 뒤의 것은 분류 오류 감소(신뢰도 0.25 기준 15개 → 11개)와 맞아떨어진다. 6.6절에서 가설로 둔 위치 상쇄 효과는 이득의 약 절반으로 확인되었다.</li>
+  <li><b>맞힌 박스의 위치는 정확하다.</b> 신뢰도 0.25 이상에서 같은 약으로 맞힌 692박스의 조건부 IoU 중앙값은 0.974이고, 0.9 미만은 0.7%다.
+    다만 이것은 맞힌 박스만의 값이고, mAP는 IoU 0.95에서 0.87로 내려간다. 가장 엄격한 기준에서는 위치 손실이 남아 있다.</li>
+  <li><b>앙상블 이득은 IoU 0.95에서 가장 크다.</b> 11s 대비 +0.008 중 약 절반(0.004)이 IoU 0.95 한 곳(+0.038)에서 관찰된다.
+    6.6절의 "박스 좌표 평균이 위치를 다듬는다"는 가설을 지지하는 패턴이지만, IoU별 차이는 원인별 가법 분해가 아니므로 원인으로 단정하지 않는다.</li>
 </ul>
 
 <h3>8.3 실패 유형</h3>
 <figure><img src="../../reports/figures/21_error_types.png" style="width:100%">
-<figcaption>그림 8-2. 신뢰도 0.25 이상 예측 기준 실패 유형(왼쪽 · 가운데)과 IoU 임계값별 mAP(오른쪽).</figcaption></figure>
-<p>정답 박스마다 신뢰도 0.25 이상 예측과 비교해 <b>정답</b>(같은 약, IoU ≥ 0.5), <b>위치 오류</b>(같은 약, 0.1 ≤ IoU &lt; 0.5), <b>분류 오류</b>(다른 약, IoU ≥ 0.5), <b>놓침</b>(해당 없음)으로 나눴다.
-0.25는 Ultralytics 예측의 기본 신뢰도이며, 0.5로 바꿔도 결론은 같았다.</p>
+<figcaption>그림 8-2. 신뢰도 0.25 이상 예측 기준 실패 유형(왼쪽: 정답 박스, 가운데: 예측 박스)과 IoU 임계값별 mAP(오른쪽).</figcaption></figure>
+<p>예측을 점수 순으로 하나씩 보며, 아직 배정되지 않은 정답 중 IoU가 가장 큰 것(IoU ≥ 0.5, 약 종류 무관)에 <b>1:1로 배정</b>했다.
+같은 약이면 <b>정답</b>, 다른 약이면 <b>분류 오류</b>다. 남은 정답은 같은 약 예측이 0.1 ≤ IoU &lt; 0.5로 겹치면 <b>위치 오류</b>, 아니면 <b>놓침</b>이다.
+예측 하나가 겹친 두 정답에 동시에 쓰이지 않으며, 어느 정답과도 IoU &lt; 0.1인 배경 오탐은 별도로 센다.
+0.25는 Ultralytics 예측의 기본 신뢰도다. 고정 신뢰도에서 센 개수이므로 COCO mAP의 손실 분해가 아니다.</p>
 <table>
-  <tr><th>정답 박스</th><th class="n">정답</th><th class="n">위치 오류</th><th class="n">분류 오류</th><th class="n">놓침</th></tr>
-  <tr><td>학습 가능 37종 (708개)</td><td class="n">685 (96.8%)</td><td class="n">0</td><td class="n">11 (1.6%)</td><td class="n">12 (1.7%)</td></tr>
-  <tr><td>처음 보는 19종 (63개)</td><td class="n">0</td><td class="n">0</td><td class="n">54 (85.7%)</td><td class="n">9 (14.3%)</td></tr>
-  <tr><td>37종, 신뢰도 0.5 기준</td><td class="n">677</td><td class="n">0</td><td class="n">9</td><td class="n">22</td></tr>
-  <caption>표 8-3. 출처: error_types.csv. 예측 박스 기준으로는 배경 오탐 3개, 중복 예측 0개.</caption>
+  <tr><th>정답 박스 (신뢰도 ≥ 0.25)</th><th class="n">정답</th><th class="n">위치 오류</th><th class="n">분류 오류</th><th class="n">놓침</th></tr>
+  <tr><td>학습 가능 37종 (708개)</td><td class="n">692 (97.7%)</td><td class="n">0</td><td class="n">12 (1.7%)</td><td class="n">4 (0.6%)</td></tr>
+  <tr><td>처음 보는 19종 (63개)</td><td class="n">0</td><td class="n">0</td><td class="n">61 (96.8%)</td><td class="n">2 (3.2%)</td></tr>
+  <tr><td>37종, 신뢰도 ≥ 0.5</td><td class="n">683</td><td class="n">0</td><td class="n">8</td><td class="n">17</td></tr>
+  <caption>표 8-3. 출처: error_types.csv. 예측 박스 기준으로는 배경 오탐 0개, 같은 약 중복 예측 2개.</caption>
 </table>
 <ul>
-  <li><b>위치 오류와 배경 오탐은 사실상 없다.</b> 알약을 "찾는" 일은 해결되었고, 남은 문제는 "이름 붙이기"다.</li>
-  <li><b>놓침은 실제로는 낮은 신뢰도다.</b> 놓친 21개 모두 같은 자리에 IoU ≥ 0.5 박스가 있었지만 신뢰도가 0.25 미만이었다. 그 박스의 이름도 21개 중 16개는 다른 약이었다.</li>
-  <li><b>처음 보는 약은 대부분 다른 약 이름으로 답한다</b> (63개 중 54개). 놓침으로 남은 9개도 낮은 신뢰도의 다른 약 박스였다.</li>
+  <li><b>위치 오류와 배경 오탐은 관찰되지 않았다.</b> 이 촬영 환경에서 알약을 "찾는" 일은 거의 해결되었고, 남은 문제는 "이름 붙이기"다.</li>
+  <li><b>학습한 약의 분류 오류는 신뢰도가 낮다.</b> 12개의 신뢰도 중앙값은 0.55, 최댓값은 0.82였다. 신뢰도 0.9 이상으로 틀린 학습 약은 없었다.</li>
+  <li><b>놓침(신뢰도 0.25 기준)은 사실상 낮은 신뢰도의 검출이다.</b> 놓친 6개(37종 4, 처음 보는 약 2) 모두 같은 자리에 IoU ≥ 0.5 박스가 있었지만 신뢰도가 0.25 미만이었고, 그중 맞는 약 이름은 1개였다.</li>
+  <li><b>처음 보는 약은 거의 모두 다른 약 이름으로 답한다</b> (63개 중 61개).</li>
 </ul>
 
 <h3>8.4 실패 사례</h3>
-<figure><img src="../../reports/figures/22_failure_cases.png" style="width:92%">
-<figcaption>그림 8-3. (실제, 예측) 쌍마다 신뢰도가 가장 높은 사례 하나. 초록 실선은 정답, 빨강 점선은 신뢰도 0.25 이상 예측.</figcaption></figure>
+<figure><img src="../../reports/figures/22_failure_cases.png" style="width:88%">
+<figcaption>그림 8-3. (실제, 예측) 쌍마다 신뢰도가 가장 높은 사례 하나. 초록 실선은 정답, 빨강 점선은 신뢰도 0.25 이상 예측. 번호는 표 8-4.</figcaption></figure>
+<table>
+  <tr><th class="n">번호</th><th>유형</th><th>실제 약</th><th>예측</th><th class="n">신뢰도</th></tr>
+  <tr><td class="n">1</td><td>학습 약 분류 오류</td><td>아토르바정 10mg</td><td>로수젯정 10/5mg</td><td class="n">0.82</td></tr>
+  <tr><td class="n">2</td><td>학습 약 분류 오류</td><td>보령부스파정 5mg</td><td>졸로푸트정 100mg</td><td class="n">0.81</td></tr>
+  <tr><td class="n">3</td><td>학습 약 분류 오류</td><td>뉴로메드정</td><td>아토젯정 10/40mg</td><td class="n">0.62</td></tr>
+  <tr><td class="n">4</td><td>학습 약 분류 오류</td><td>트라젠타듀오정 2.5/850mg</td><td>울트라셋이알서방정</td><td class="n">0.55</td></tr>
+  <tr><td class="n">5</td><td>처음 보는 약</td><td>다보타민큐정</td><td>트루비타정</td><td class="n">0.98</td></tr>
+  <tr><td class="n">6</td><td>처음 보는 약</td><td>맥시부펜이알정 300mg</td><td>리렉스펜정 300mg</td><td class="n">0.97</td></tr>
+  <tr><td class="n">7</td><td>처음 보는 약</td><td>아빌리파이정 10mg</td><td>보령부스파정 5mg</td><td class="n">0.97</td></tr>
+  <tr><td class="n">8</td><td>처음 보는 약</td><td>리렉스펜정 300mg</td><td>맥시부펜이알정 300mg</td><td class="n">0.96</td></tr>
+  <tr><td class="n">9~11</td><td>학습 약 놓침</td><td>보령부스파정 · 아토젯정 · 로수젯정</td><td>신뢰도 0.25 미만 박스만 있음</td><td class="n">0.09~0.17</td></tr>
+  <caption>표 8-4. 출처: error_failure_cases.csv. 1~4는 IoU 0.96~0.98로 위치는 맞고 이름만 틀렸다.</caption>
+</table>
 <ul>
-  <li><b>학습한 약끼리도 높은 신뢰도로 틀린다.</b> 0.96~0.98 신뢰도의 오분류가 4건 있었고, 그중 3건은 실제 약이 흰색 정제였다 (예: 흰색 장방형인 아토젯정 ↔ 트윈스타정, 양방향).
-    색과 모양이 비슷하면 각인으로만 구분되는데, 사진 전체에서 각인이 차지하는 영역은 작다.</li>
-  <li><b>처음 보는 약은 닮은 학습 약으로 답한다.</b> 다보타민큐정 ↔ 트루비타정(갈색 타원형, 0.96 / 0.94), 리렉스펜정 ↔ 맥시부펜이알정(흰색 장방형, 0.93 / 0.92)처럼
+  <li><b>처음 보는 약은 닮은 학습 약으로, 높은 신뢰도로 답한다.</b> 다보타민큐정 ↔ 트루비타정(갈색 타원형), 맥시부펜이알정 ↔ 리렉스펜정(흰색 장방형)처럼
     서로 닮은 두 약이 다른 fold에 있을 때 양방향으로 혼동했다.</li>
+  <li><b>학습한 약의 오류는 흰색 정제끼리의 혼동이 많다.</b> 색과 모양이 비슷하면 각인으로만 구분되는데, 사진 전체에서 각인이 차지하는 영역은 작다. 다만 이 경우는 신뢰도가 0.82 이하로 낮았다.</li>
 </ul>
 
 <h3>8.5 신뢰도로 처음 보는 약을 가를 수 있는가</h3>
 <table>
-  <tr><th>정답 박스에 겹친 최고 신뢰도</th><th class="n">학습 가능 37종</th><th class="n">처음 보는 19종</th></tr>
-  <tr><td>중앙값</td><td class="n">0.963</td><td class="n">0.501</td></tr>
-  <tr><td>0.9 이상 비율</td><td class="n">90.0%</td><td class="n"><b>25.4%</b></td></tr>
-  <tr><td>0.5 미만 비율</td><td class="n">3.1%</td><td class="n">49.2%</td></tr>
-  <tr><td>두 번째 이름도 0.25 이상인 비율</td><td class="n">1.0%</td><td class="n">11.1%</td></tr>
-  <tr><td>AUROC (신뢰도가 낮을수록 처음 보는 약)</td><td class="n" colspan="2">0.916 (95% 구간 0.864 ~ 0.966, 조합 단위 부트스트랩 1000회)</td></tr>
-  <caption>표 8-4. 출처: error_unknown_summary.csv. 같은 조합의 사진은 서로 독립이 아니어서 조합 단위로 다시 뽑았다.</caption>
+  <tr><th>정답 박스에 겹친 최고 신뢰도</th><th class="n">학습 가능 37종 (708)</th><th class="n">처음 보는 19종 (63)</th></tr>
+  <tr><td>중앙값</td><td class="n">0.966</td><td class="n">0.651</td></tr>
+  <tr><td>0.9 이상 비율</td><td class="n">91.1%</td><td class="n"><b>30.2%</b></td></tr>
+  <tr><td>0.5 미만 비율</td><td class="n">2.4%</td><td class="n">20.6%</td></tr>
+  <tr><td>두 번째 이름도 0.25 이상인 비율</td><td class="n">1.1%</td><td class="n">23.8%</td></tr>
+  <tr><td>AUROC (신뢰도가 낮을수록 처음 보는 약)</td><td class="n" colspan="2">0.842 (95% 구간 0.729 ~ 0.946, 조합 단위 부트스트랩 1000회)</td></tr>
+  <caption>표 8-5. 출처: error_unknown_summary.csv. 같은 조합의 사진은 서로 독립이 아니어서 조합 단위로 다시 뽑았다.</caption>
 </table>
-<p>신뢰도는 처음 보는 약에서 뚜렷이 낮지만(AUROC 0.916), <b>처음 보는 약의 4분의 1은 신뢰도 0.9 이상으로 다른 약이라고 답했다.</b>
-같은 OOF에서 처음 보는 약의 90%를 거르는 임계값(0.948)을 잡으면 학습한 약 박스의 24.4%도 함께 거부된다(같은 데이터로 고른 값이라 낙관적이다). 11장의 "신뢰도 임계값만으로는 부족하다"는 판단의 정량 근거다.
-처음 보는 약이 63개뿐이고 촬영 환경이 하나여서, 이 표로 운영 임계값을 정하지는 않는다.</p>
+<p>신뢰도는 처음 보는 약에서 낮은 편이지만(AUROC 0.842), <b>처음 보는 약의 30%는 신뢰도 0.9 이상으로 다른 약이라고 답했다.</b>
+동일 OOF 표본에서 처음 보는 약의 90%를 거르는 탐색적 operating point를 잡으면 학습한 약 박스의 55%도 함께 거부된다 (그 점의 신뢰도 0.967. 같은 데이터로 고른 값이라 낙관적이며 운영값이 아니다).
+11장의 "신뢰도 임계값만으로는 부족하다"는 판단의 정량 근거다. 처음 보는 약이 63박스뿐이고 촬영 환경이 하나여서, 이 표로 운영 임계값을 정하지는 않는다.</p>
 
 <h3>8.6 테스트 예측 예시</h3>
 <figure><img src="../../reports/figures/23_test_predictions.png" style="width:92%">
 <figcaption>그림 8-4. 현재 최종 후보의 테스트 예측 (고정 시드 0으로 6장 무작위 선택, 신뢰도 0.25 이상). 노란 점선은 같은 알약에 붙은 두 번째 이름이다. 테스트는 정답이 없어 정확도를 판단하지 않는다.</figcaption></figure>
-<p>같은 알약에 이름이 두 개 이상 붙은 비율은 OOF 1.9%(750묶음 중 14), 테스트 5.1%(3,180묶음 중 163)였다.
-정답이 없어 테스트가 더 어렵다는 증거로 해석하지 않는다. 다만 이 비율은 정답 없이 계산할 수 있으므로, 서비스에서 "사용자 확인 필요" 사례의 빈도를 지켜보는 지표로 쓸 수 있다.</p>
+<p>신뢰도 0.25 이상 박스를 IoU ≥ 0.5로 묶은 "한 알약"에 이름이 두 개 이상 붙은 비율은 OOF 3.0%(765묶음 중 23), 테스트 3.8%(3,124묶음 중 118)였다.
+정답이 없어 테스트가 더 어렵다는 증거로 해석하지 않는다. 다만 정답 없이 계산할 수 있으므로, 서비스에서 "사용자 확인 필요" 사례의 빈도를 지켜보는 <b>모니터링 후보 지표</b>로 쓸 수 있다.</p>
 
 <div class="box">
-  <p><b>정리</b> – 현재 최종 후보는 학습한 약의 위치를 거의 완벽히 찾는다(IoU 중앙값 0.974). 점수를 잃는 곳은 <b>처음 보는 약에 다른 이름을 붙이는 것</b>과
-  <b>색·모양이 닮은 약의 혼동</b>이다. 앞의 것은 데이터 범위의 문제라 모델 변경으로 풀리지 않았다(6.2~6.3절). 뒤의 것은 이번에 시도한 고해상도 입력(6.1절)과 crop 분류기(6.3절)에서
-  개선이 확인되지 않아 남은 과제로 둔다(12장).</p>
+  <p><b>정리</b> – 현재 최종 후보는 학습한 약의 위치를 정확히 찾고(맞힌 박스의 IoU 중앙값 0.974), 학습한 약을 틀릴 때는 신뢰도가 낮다.
+  점수와 안전 모두에서 가장 큰 문제는 <b>처음 보는 약에 높은 신뢰도로 다른 이름을 붙이는 것</b>이다. 이것은 데이터 범위의 문제라 모델 변경으로 풀리지 않았다(6.2~6.3절).
+  닮은 약의 혼동은 이번에 시도한 고해상도 입력(6.1절)과 crop 분류기(6.3절)에서 개선이 확인되지 않아 남은 과제로 둔다(12장).</p>
 </div>
 
 <!-- ================= 9. 재현성 ================= -->
@@ -381,12 +436,13 @@ fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 �
   <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
   <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 오류 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
   <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
-  <tr><td><code>tests/</code></td><td>단위 테스트 25개 (좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 검사 로직)</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 28개 (좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용, 검사 로직)</td></tr>
 </table>
 <h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
 <ul>
   <li><b>OOF 완전성</b>: fold 결과 파일 누락, 다른 fold 이미지 섞임, 예측 없는 이미지, 중복 행이 있으면 계산을 멈춘다.</li>
-  <li><b>학습 설정 스냅샷 대조</b>: 학습을 건너뛰고 평가만 다시 할 때 현재 설정과 학습 당시 기록(<code>args.yaml</code>)이 다르면 멈춘다. 기존 학습 20개 전부 일치 확인.</li>
+  <li><b>학습 설정 스냅샷 대조</b>: 학습을 건너뛰고 평가만 다시 할 때 현재 설정과 학습 당시 기록(<code>args.yaml</code>)이 다르면 멈춘다. TTA 재예측도 fold 모델이 그 fold의 데이터로 학습됐는지 확인한 뒤 실행한다.</li>
+  <li><b>라벨 검수 결정의 적용 조건</b>: 사람이 확정한 결정만 적용하고, 조건이 더 이상 맞지 않으면(이미 고쳐졌거나 박스가 없으면) 적용하지 않고 기록만 남긴다. 같은 원본에서 몇 번을 돌려도 같은 결과가 나오는지 테스트한다.</li>
   <li><b>전처리 일치</b>: 학습용으로 저장한 이미지와 예측 때 실시간으로 전처리한 배열이 픽셀 단위로 같은지 테스트한다.</li>
   <li><b>제출 파일 검사</b>: 컬럼 순서, 테스트에 있는 이미지 번호, 학습에 있는 약 코드, 이미지 안의 박스, 점수 범위, 중복 예측을 제출 전에 검사하고, 예측이 없는 테스트 이미지 수를 기록한다.</li>
 </ul>
@@ -397,20 +453,51 @@ python scripts/run_experiment.py --config configs/e0_baseline.yaml [--fold k]
 python scripts/summarize_cv.py e0_baseline e2_yolo11m
 python scripts/analyze_oof.py e0_baseline e2_yolo11m
 python scripts/run_experiment.py --config configs/final_yolo11s.yaml   # final_yolo11m도 같은 방식
-python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 1 1 --iou-thr 0.7 --name final_11s_11m_wbf</pre>
+python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2 1 --iou-thr 0.7 --name final_11s_11m_wbf</pre>
 <p class="src">GPU 학습은 cuDNN 비결정성 때문에 같은 시드에서도 가중치가 비트 단위로 같지 않을 수 있다. 재현 기준은 5-Fold 점수가 소수 셋째 자리 수준에서 같은 것이다.</p>
 
 <!-- ================= 10. 업무 수행 ================= -->
 <h2>10. 업무 수행 과정</h2>
-<div class="todo">날짜별 타임라인(계획 대비 실제)과 업무일지 링크, 결과 검토 반영 이력(지적 → 확인 → 조치)을 정리한다.<br>발표 참여: 개인 프로젝트로 전환되어 별도 발표 순서는 없고 발표일에 출석한다. 대신 시연 영상과 주강사 1:1 진행 공유 기록을 근거로 남긴다 (진행 후 기입).</div>
+<p>매일 업무일지(<code>docs/worklog/</code>)에 할 일 · 한 일 · 인사이트 · 고민 · 못 한 일을 남겼고, 모든 변경은 Git 커밋으로 추적된다.
+요구사항 17개(R1~R17)를 첫날 추적표(<code>docs/PLAN.md</code>)로 만들어 일정에 배치했다 (최종 충족 상태는 부록 B).</p>
+<h3>10.1 타임라인</h3>
+<table>
+  <tr><th class="n" style="width:11%">날짜</th><th style="width:46%">한 일</th><th>주요 산출물</th></tr>
+  <tr><td class="n">10/27 (화)</td><td>EDA, 라벨 정제 A~C, 조합 단위 5-Fold, 파이프라인 모듈화·테스트, 베이스라인과 E1~E3 탐색, 분류기 3종·2단계, WBF 직접 구현, 11s·11m 5-Fold, 최종 모델·제출 후보</td><td><code>01_eda</code>, <code>02_preprocess</code>, <code>03_baseline</code>, <code>src/pilldet</code>, 제출 후보 3종</td></tr>
+  <tr><td class="n">10/28 (수)</td><td>리뷰 반영(근사 메타 검증, 에포크 민감도, OOF 완전성·설정 스냅샷 검사), CLAHE 5-Fold 비교, 보고서 구성안</td><td><code>wbf_meta_validation.csv</code>, <code>compare_oof.py</code></td></tr>
+  <tr><td class="n">10/29 (목)</td><td>보고서 초안과 리뷰 반영, 결과 분석(클래스별 AP · 실패 유형 · 처음 보는 약과 신뢰도), 실패 유형 1:1 매칭으로 재작성</td><td><code>error_analysis.py</code>, 보고서 초안</td></tr>
+  <tr><td class="n">10/30 (금)</td><td>원본 라벨 오류 4장 발견·수정(감사 D·E) → 5-Fold·최종 모델 전체 재학습, CLAHE 재검증, 학습률(R11)·TTA(R14) 실험, 데모 앱, 보고서 완성</td><td><code>audit_labels.py</code>, <code>label_review.csv</code>, 데모 앱, 보고서</td></tr>
+  <tr><td class="n">11/02 주</td><td>Kaggle 제출 형식 확인·제출, GitHub 반영, 시연 영상 녹화(11/03), LMS 제출(11/04 19:00), 최종 업무일지·Kaggle(11/05)</td><td>Kaggle 점수, 시연 영상</td></tr>
+  <caption>표 10-1. 계획(<code>docs/PLAN.md</code>)과 비교하면 실험은 계획보다 이틀 앞섰고, 오류 분석에서 찾은 라벨 오류 때문에 10/30에 전체 재학습이 추가됐다.</caption>
+</table>
+
+<h3>10.2 검토 반영 이력</h3>
+<p>단계마다(설계 → 중간 결과 → 완성본) 외부 리뷰를 받고, 지적을 그대로 받아들이지 않고 코드·데이터로 다시 확인한 뒤 고쳤다. 결론을 바꾼 주요 사례:</p>
+<table>
+  <tr><th style="width:30%">지적 · 발견</th><th style="width:30%">확인</th><th>조치</th></tr>
+  <tr><td>WBF 설정을 같은 OOF에서 골라 최댓값을 보고</td><td>선택 편향이 맞다</td><td>근사 메타 검증 추가, 한계("완전 격리 아님") 명시</td></tr>
+  <tr><td>"37종 OOF가 Kaggle 점수에 가깝다"</td><td>희귀 19종을 뺀 값이라 과장</td><td>"조건부 진단값"으로 용어 통일</td></tr>
+  <tr><td>OOF 집계가 파일 존재만 확인</td><td>누락·중복 행도 통과했다</td><td>완전성 검사로 멈추게 하고 테스트 추가</td></tr>
+  <tr><td>"모든 조합을 세 각도로 촬영"</td><td>조합당 1~3장이었다</td><td>README·보고서 정정</td></tr>
+  <tr><td>"모르는 약은 신뢰도로 거부"</td><td>0.96 오답 사례와 모순</td><td>신뢰도 단독 불충분, 운영 임계값 미제시로 정정</td></tr>
+  <tr><td>실패 유형 집계가 예측을 여러 정답에 재사용</td><td>맞다 (4건 차이)</td><td>점수 순 1:1 매칭 + 회귀 테스트</td></tr>
+  <tr><td>그 4건을 추적하다 <b>원본 라벨 오류 4장</b> 발견</td><td>다른 각도 사진과 대조해 확정</td><td>감사 D·E 추가, 라벨 수정, <b>전체 재학습</b>, "학습한 약끼리 고신뢰 오분류" 결론 철회</td></tr>
+  <tr><td>CLAHE 차이(−0.0015)가 결론 여유보다 작음</td><td>재학습 뒤 다시 확인 필요</td><td>수정 라벨로 5-Fold 재검증 → 같은 결론 (6.5절)</td></tr>
+  <caption>표 10-2. 전체 이력은 날짜별 업무일지와 Git 커밋 메시지에 있다.</caption>
+</table>
+
+<h3>10.3 발표 참여</h3>
+<p>개인 사정으로 팀 프로젝트에서 개인 프로젝트로 전환되어 별도 발표 순서는 없다. 발표일에는 출석해 다른 팀 발표를 듣는다.
+대신 (1) 데모 앱 시연 영상(11/03 녹화, README에 링크), (2) 주강사와의 1:1 진행 공유를 발표 참여의 근거로 남긴다.</p>
 
 <!-- ================= 11. 비즈니스 ================= -->
 <h2>11. 비즈니스 시사점과 한계</h2>
 <h3>11.1 서비스에 주는 시사점</h3>
 <ul>
-  <li><b>여러 조합에서 반복 관측된 약은 높은 진단값을 보였다.</b> 37종 조건부 OOF 0.954는 37종 전체를 합친 값이며, 모든 약의 정확도를 보장하지 않는다.
+  <li><b>여러 조합에서 반복 관측된 약은 높은 진단값을 보였다.</b> 37종 조건부 OOF 0.964는 37종 전체를 합친 값이며, 모든 약의 정확도를 보장하지 않는다 (하위 약 AP 0.66, 8.1절).
     서비스 범위를 정하려면 약별 AP와 실패 사례(8장)를 함께 봐야 한다.</li>
-  <li><b>처음 보는 약을 다른 약으로 확신하는 것이 가장 큰 위험이다.</b> 현재 최종 후보도 처음 보는 약의 25%에 신뢰도 0.9 이상으로 다른 약 이름을 붙였다(8.5절, 신뢰도로 가르는 AUROC 0.916).
+  <li><b>처음 보는 약을 다른 약으로 확신하는 것이 가장 큰 위험이다.</b> 현재 최종 후보와 같은 구성의 OOF에서 처음 보는 약 63박스의 30%가 신뢰도 0.9 이상으로 다른 약 이름을 받았다
+    (8.5절, 신뢰도로 가르는 AUROC 0.84, 같은 촬영 환경의 OOF 기준).
     따라서 <b>신뢰도 임계값만으로는 "모르는 약"을 걸러낼 수 없다.</b> 병용 금기 안내처럼 틀린 이름이 위험으로 이어지는 기능에는
     (1) 학습에 없는 약으로 따로 만든 검증 세트에서 거부율과 임계값을 보정하고, (2) 약 이름·각인을 사용자가 확인하는 단계를 필수로 두어야 한다.
     현재 데이터에는 독립된 "모르는 약" 검증 세트가 없어, 이 보고서는 운영 임계값을 제시하지 않는다.</li>
@@ -422,11 +509,59 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 1
   <li>한 fold에만 있는 희귀 19종의 실제 성능은 이 검증으로 잴 수 없다.</li>
   <li>단색 배경·고정 촬영 환경의 데이터다. 사용자가 손으로 찍은 사진(조명, 배경, 각도)에서는 성능이 낮아질 수 있다.</li>
   <li>근사 메타 검증은 완전히 격리된 추정이 아니며, 최종 에포크는 휴리스틱이다.</li>
+  <li>라벨 감사 E는 모델 예측으로 후보를 만들었으므로, 모델이 같이 틀린 라벨 오류는 찾지 못한다. 남은 라벨 오류의 수는 알 수 없다.</li>
 </ul>
 
 <!-- ================= 12. 회고 ================= -->
 <h2>12. 회고와 향후 과제</h2>
-<div class="todo">프로젝트 마무리 시점에 작성한다 (잘한 점, 아쉬운 점, 다음 프로젝트에 가져갈 것).</div>
+<h3>12.1 잘한 점</h3>
+<ul>
+  <li><b>재는 법을 먼저 만들었다.</b> 조합 단위 분할과 open-set 상한 분해 덕분에 0.63이라는 낮은 OOF를 "모델이 나빠서"가 아니라 "분할 구조 때문"으로 설명할 수 있었고, 모델 비교를 같은 조건(37종 조건부)에서 했다.</li>
+  <li><b>음성 결과를 버리지 않았다.</b> 고해상도·YOLO26·Copy-Paste·2단계·CLAHE·학습률·TTA의 기각 근거를 수치로 남겨, 같은 시도를 반복하지 않게 했다.
+    학습률은 판단 규칙을 실행 전에 적어 두어, 결과를 본 뒤 기준을 바꾸지 않았다.</li>
+  <li><b>숫자가 왜 바뀌었는지 끝까지 따라갔다.</b> 실패 유형 집계를 1:1 매칭으로 바꾸자 달라진 4건을 추적해, 정제가 놓친 원본 라벨 오류를 찾고 전체를 다시 학습했다.</li>
+</ul>
+<h3>12.2 아쉬운 점</h3>
+<ul>
+  <li><b>처음 무결성 검사의 범위를 좁게 잡았다.</b> "같은 약 중복"만 보고 "다른 약끼리 같은 좌표"를 놓쳤다. 검사 항목을 "가능한 라벨 오류 유형" 목록에서 출발해 정했어야 했다.</li>
+  <li><b>fold 0 하나로 탐색한 실험이 많다.</b> 시간 때문에 E1~E3는 fold 0(독립 조합 23개)으로만 비교했고, 그 결과는 라벨 수정 전 기록이다.</li>
+  <li><b>희귀 19종의 성능은 끝내 잴 수 없었다.</b> 데이터 구조상 한계지만, 서비스 관점에서는 가장 중요한 질문이다.</li>
+</ul>
+<h3>12.3 향후 과제</h3>
+<ul>
+  <li><b>"모르는 약" 검증 세트</b>: 학습에 없는 약 사진을 따로 모아 거부율·임계값을 보정한다. 지금은 운영 임계값을 제시할 근거가 없다.</li>
+  <li><b>닮은 약의 혼동</b>: 색·모양이 같고 각인만 다른 약을 각인 영역 중심으로 비교하는 방법을 검증한다.</li>
+  <li><b>실사용 사진</b>: 단색 배경·고정 촬영이 아닌 사진(조명·배경·각도)에서 성능 저하를 측정한다.</li>
+  <li><b>라벨 감사 자동화</b>: 같은 조합의 다른 각도 사진 사이에서 라벨 일관성을 검사하는 규칙을 만들어, 모델 예측에 기대지 않고 라벨 교환을 찾는다.</li>
+</ul>
+
+<!-- ================= 부록 ================= -->
+<h2>부록 A. 56종 클래스별 AP (5-Fold OOF)</h2>
+<p class="src">현재 최종 후보와 같은 구성(WBF 2:1, IoU 0.7)의 OOF. "19종"은 한 fold에만 있어 검증될 때 항상 학습에 없는 약이다. "학습 박스"는 그 약이 검증될 때 나머지 fold에 있던 같은 약 박스 수의 평균. 출처: reports/experiments/error_per_class.csv</p>
+<table class="appx"><tr><th>약 이름</th><th class="n">코드</th><th>그룹</th><th class="n">AP50-95</th><th class="n">AP50</th><th class="n">정답</th><th class="n">조합</th><th class="n">학습 박스</th></tr><tr><td>노바스크정 5mg</td><td class="n">19861</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>리바로정 4mg</td><td class="n">29667</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">18</td><td class="n">9</td><td class="n">8.6</td></tr><tr><td>리피로우정 20mg</td><td class="n">22074</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">16</td><td class="n">9</td><td class="n">11.9</td></tr><tr><td>리피토정 20mg</td><td class="n">16232</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">21</td><td class="n">11</td><td class="n">15.3</td></tr><tr><td>무코스타정(레바미피드)(비매품)</td><td class="n">3544</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>스토가정 10mg</td><td class="n">19607</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>아질렉트정(라사길린메실산염)</td><td class="n">31863</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">12</td><td class="n">9</td><td class="n">9.5</td></tr><tr><td>엑스포지정 5/160mg</td><td class="n">20877</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">12</td><td class="n">4</td><td class="n">7.5</td></tr><tr><td>종근당글리아티린연질캡슐(콜린알포세레이트) </td><td class="n">18357</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">13</td><td class="n">9</td><td class="n">10.3</td></tr><tr><td>큐시드정 31.5mg/PTP</td><td class="n">25438</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>크레스토정 20mg</td><td class="n">16262</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">23</td><td class="n">11</td><td class="n">17.2</td></tr><tr><td>트라젠타정(리나글립틴)</td><td class="n">28763</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">9</td><td class="n">3</td><td class="n">6.0</td></tr><tr><td>기넥신에프정(은행엽엑스)(수출용)</td><td class="n">3483</td><td>37종</td><td class="n">0.997</td><td class="n">1.000</td><td class="n">45</td><td class="n">15</td><td class="n">35.6</td></tr><tr><td>일양하이트린정 2mg</td><td class="n">3351</td><td>37종</td><td class="n">0.996</td><td class="n">1.000</td><td class="n">157</td><td class="n">89</td><td class="n">125.5</td></tr><tr><td>로수바미브정 10/20mg</td><td class="n">38162</td><td>37종</td><td class="n">0.994</td><td class="n">1.000</td><td class="n">18</td><td class="n">10</td><td class="n">13.7</td></tr><tr><td>자누메트정 50/850mg</td><td class="n">25367</td><td>37종</td><td class="n">0.993</td><td class="n">0.993</td><td class="n">12</td><td class="n">4</td><td class="n">9.0</td></tr><tr><td>카발린캡슐 25mg</td><td class="n">41768</td><td>37종</td><td class="n">0.993</td><td class="n">1.000</td><td class="n">16</td><td class="n">9</td><td class="n">12.6</td></tr><tr><td>뉴로메드정(옥시라세탐)</td><td class="n">3832</td><td>37종</td><td class="n">0.992</td><td class="n">0.992</td><td class="n">20</td><td class="n">10</td><td class="n">14.7</td></tr><tr><td>리리카캡슐 150mg</td><td class="n">18147</td><td>37종</td><td class="n">0.992</td><td class="n">1.000</td><td class="n">15</td><td class="n">9</td><td class="n">11.6</td></tr><tr><td>마도파정</td><td class="n">20014</td><td>37종</td><td class="n">0.992</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.3</td></tr><tr><td>에빅사정(메만틴염산염)(비매품)</td><td class="n">13900</td><td>37종</td><td class="n">0.989</td><td class="n">1.000</td><td class="n">15</td><td class="n">7</td><td class="n">12.0</td></tr><tr><td>글리아타민연질캡슐</td><td class="n">32310</td><td>37종</td><td class="n">0.988</td><td class="n">1.000</td><td class="n">15</td><td class="n">9</td><td class="n">11.9</td></tr><tr><td>플라빅스정 75mg</td><td class="n">20238</td><td>37종</td><td class="n">0.988</td><td class="n">1.000</td><td class="n">20</td><td class="n">11</td><td class="n">15.7</td></tr><tr><td>트윈스타정 40/5mg</td><td class="n">27733</td><td>37종</td><td class="n">0.986</td><td class="n">1.000</td><td class="n">12</td><td class="n">4</td><td class="n">4.5</td></tr><tr><td>자누비아정 50mg</td><td class="n">22347</td><td>37종</td><td class="n">0.978</td><td class="n">0.978</td><td class="n">9</td><td class="n">3</td><td class="n">6.0</td></tr><tr><td>글리틴정(콜린알포세레이트)</td><td class="n">33880</td><td>37종</td><td class="n">0.973</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.1</td></tr><tr><td>가바토파정 100mg</td><td class="n">16548</td><td>37종</td><td class="n">0.967</td><td class="n">1.000</td><td class="n">18</td><td class="n">6</td><td class="n">13.0</td></tr><tr><td>아모잘탄정 5/100mg</td><td class="n">25469</td><td>37종</td><td class="n">0.966</td><td class="n">0.978</td><td class="n">12</td><td class="n">4</td><td class="n">4.5</td></tr><tr><td>로수젯정10/5밀리그램</td><td class="n">36637</td><td>37종</td><td class="n">0.963</td><td class="n">0.977</td><td class="n">19</td><td class="n">10</td><td class="n">13.6</td></tr><tr><td>오마코연질캡슐(오메가-3-산에틸에스테르90)</td><td class="n">16688</td><td>37종</td><td class="n">0.959</td><td class="n">1.000</td><td class="n">8</td><td class="n">7</td><td class="n">6.2</td></tr><tr><td>아토젯정 10/40mg</td><td class="n">35206</td><td>37종</td><td class="n">0.934</td><td class="n">0.941</td><td class="n">37</td><td class="n">16</td><td class="n">28.9</td></tr><tr><td>뮤테란캡슐 100mg</td><td class="n">2483</td><td>37종</td><td class="n">0.928</td><td class="n">1.000</td><td class="n">9</td><td class="n">3</td><td class="n">4.0</td></tr><tr><td>콜리네이트연질캡슐 400mg</td><td class="n">19232</td><td>37종</td><td class="n">0.923</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.3</td></tr><tr><td>아토르바정 10mg</td><td class="n">21325</td><td>37종</td><td class="n">0.884</td><td class="n">0.901</td><td class="n">22</td><td class="n">10</td><td class="n">16.9</td></tr><tr><td>에어탈정(아세클로페낙)</td><td class="n">4543</td><td>37종</td><td class="n">0.867</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>보령부스파정 5mg</td><td class="n">1900</td><td>37종</td><td class="n">0.749</td><td class="n">0.773</td><td class="n">15</td><td class="n">5</td><td class="n">8.4</td></tr><tr><td>트라젠타듀오정 2.5/850mg</td><td class="n">30308</td><td>37종</td><td class="n">0.663</td><td class="n">0.663</td><td class="n">9</td><td class="n">3</td><td class="n">4.0</td></tr><tr><td>동아가바펜틴정 800mg</td><td class="n">16551</td><td>19종</td><td class="n">0.135</td><td class="n">0.243</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>놀텍정 10mg</td><td class="n">24850</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>다보타민큐정 10mg/병</td><td class="n">12778</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">6</td><td class="n">2</td><td class="n">0.0</td></tr><tr><td>라비에트정 20mg</td><td class="n">21771</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>레일라정</td><td class="n">29451</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>리렉스펜정 300mg/PTP</td><td class="n">12081</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>맥시부펜이알정 300mg</td><td class="n">22362</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>비모보정 500/20mg</td><td class="n">29345</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">6</td><td class="n">2</td><td class="n">0.0</td></tr><tr><td>신바로정</td><td class="n">33009</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>써스펜8시간이알서방정 650mg</td><td class="n">13395</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>아빌리파이정 10mg</td><td class="n">12247</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>알드린정</td><td class="n">3743</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>에스원엠프정 20mg</td><td class="n">33208</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>울트라셋이알서방정</td><td class="n">27926</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>자누메트엑스알서방정 100/1000mg</td><td class="n">31885</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>제미메트서방정 50/1000mg</td><td class="n">34597</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>졸로푸트정 100mg</td><td class="n">27993</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>카나브정 60mg</td><td class="n">27777</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>트루비타정 60mg/병</td><td class="n">19552</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr></table>
+
+<h2>부록 B. 요구사항 충족 (R1~R17)</h2>
+<table>
+  <tr><th class="n">#</th><th style="width:24%">요구사항</th><th>충족 근거</th><th class="n">상태</th></tr>
+  <tr><td class="n">R1</td><td>요구사항 분석·타임라인</td><td><code>docs/PLAN.md</code> 추적표·일정 (10.1절)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R2</td><td>업무일지</td><td><code>docs/worklog/</code> 10/27~10/30, 다음 주 계속</td><td class="n">진행</td></tr>
+  <tr><td class="n">R3</td><td>개발 환경·GitHub·구조</td><td>레포, <code>requirements.txt</code>, 모듈 구조 (9장). 최종 반영은 11/02 주</td><td class="n">완료</td></tr>
+  <tr><td class="n">R4</td><td>EDA</td><td>발견 6개 → 결정 (2장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R5</td><td>파일 구조·메타데이터 확인</td><td>파일명 ↔ 라벨 대조, 무결성 검사, 라벨 감사 A~E (3장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R6</td><td>전처리</td><td>해상도 640/960/1280 (6.1절), CLAHE 5-Fold 전후 비교 (6.5절)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R7</td><td>데이터 증강</td><td>상하 뒤집기·밝기·Copy-Paste 전후 비교 (6.1·6.4절)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 28개 (9장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R9</td><td>VGG·ResNet·YOLO 등 모델</td><td>YOLO11n·s·m·YOLO26s, VGG16·ResNet50·EfficientNet-B0 (6.1·6.3절)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>
+  <tr><td class="n">R12</td><td>인식 결과 시각화</td><td>정답 vs 예측, 실패 사례, 테스트 예측 (5.3·8장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R13</td><td>추가 전처리·외부 데이터</td><td>금지 데이터(AI Hub 원본) 미사용 확인. 테스트 의사 라벨은 하지 않았다</td><td class="n">부분</td></tr>
+  <tr><td class="n">R14</td><td>기타 성능 개선 기법</td><td>WBF 직접 구현·근사 메타 검증, 5-Fold, TTA (6.6·6.7절)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R15</td><td>분석 보고서</td><td>이 보고서</td><td class="n">완료</td></tr>
+  <tr><td class="n">R16</td><td>시연 영상</td><td>데모 앱 <code>app/demo.py</code> 완성, 영상 녹화 11/03</td><td class="n">진행</td></tr>
+  <tr><td class="n">R17</td><td>Kaggle 제출</td><td>제출 후보 3종 생성·형식 검사 완료, 제출 11/02 주</td><td class="n">진행</td></tr>
+  <caption>표 B-1. 상태는 2026-10-30 기준.</caption>
+</table>
 
 <h2>참고문헌</h2>
 <ol class="refs">
