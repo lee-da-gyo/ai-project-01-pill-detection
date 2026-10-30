@@ -36,7 +36,7 @@ sys.path.insert(0, str(REPO_DIR / "scripts"))
 
 from analyze_oof import load_oof  # noqa: E402
 from pilldet.boxes import iou_matrix, to_xyxy  # noqa: E402
-from pilldet.clean import LabelCleaner, cross_class_overlaps, validate_review  # noqa: E402
+from pilldet.clean import LabelCleaner, cross_class_overlaps, review_decision, validate_review  # noqa: E402
 from pilldet.config import N_FOLDS, get_paths  # noqa: E402
 from pilldet.data import load_annotations  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
@@ -87,16 +87,9 @@ def main():
     cand = pd.concat([d, e], ignore_index=True)
 
     review = validate_review(pd.read_csv(REPO_DIR / "configs" / "label_review.csv"))
-    keys = review.set_index(["file_name", "category_id"])
-    def decision(r):  # noqa: E306
-        for k in [(r.file_name, r.category_id), (r.file_name, r.other_category_id)]:
-            if k in keys.index:
-                row = keys.loc[k]
-                return f"{row['status']}: {row['review_id']} {row['rule']} {row['action']}"
-        return "기각 (육안 확인 결과 라벨이 맞음)"
     cand["name"] = cand.category_id.map(names)
     cand["other_name"] = cand.other_category_id.map(names)
-    cand["review"] = [decision(r) for r in cand.itertuples()]
+    cand["review"] = [review_decision(review, r.file_name, r.category_id, r.other_category_id) for r in cand.itertuples()]
     files = [P.out / "experiments" / (e if k == 0 else f"{e}_f{k}") / "val_predictions.csv" for e in args.exps for k in range(N_FOLDS)]
     digest = hashlib.sha256(b"".join(f.read_bytes() for f in files)).hexdigest()[:12]
     cand["audit_source"] = (f"OOF {' + '.join(args.exps)} · WBF {':'.join(f'{w:g}' for w in args.weights)}, IoU {args.iou_thr} · "

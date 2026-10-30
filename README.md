@@ -442,7 +442,7 @@ ai-project-01-pill-detection/
 ├── app/
 │   └── demo.py                 # 🖥️ 데모 앱 (Streamlit): 사진 → 약 이름 · 위치 · 신뢰도 · 확인 필요 표시
 ├── tests/
-│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (31개)
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (33개)
 ├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
 │   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
 │   ├── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)

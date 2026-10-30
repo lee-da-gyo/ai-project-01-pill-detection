@@ -403,3 +403,38 @@ def test_review_schema_and_keep_overlap():
     assert check_integrity(kept, files, c.review)["boxes"] == 4
     with pytest.raises(AssertionError, match="같은 좌표"):  # 결정 없이는 같은 겹침이 미해결 D 후보다
         check_integrity(kept, files)
+
+
+def test_keep_overlap_only_exempts_reviewed_coordinates():
+    """keep_overlap도 검수 때 본 좌표 그대로일 때만 겹침을 허용한다 – 두 박스가 함께 다른 곳으로 옮겨진 겹침은 새 후보다."""
+    from pilldet.clean import check_integrity
+
+    raw, _ = _review_case()
+    box = "[10, 10, 100, 100]"
+    _, c = _review_case([["R001", "D_duplicate", raw.file_name[0], 2, 1, "keep_overlap", box, box, "확인", "검수자", "2026-10-30", "confirmed"]])
+    files = sorted(raw.file_name.unique())
+    moved = raw.copy()
+    moved.loc[moved.category_id.isin([1, 2]), ["x", "y"]] = 400  # 같은 두 약이 새 위치에서 다시 겹침
+    pd.testing.assert_frame_equal(c.apply_review(moved), moved)
+    assert any(n.startswith("R001 적용 안 함") for n in c._notes)
+    with pytest.raises(AssertionError, match="같은 좌표"):
+        check_integrity(moved, files, c.review)
+    one_moved = raw.copy()
+    one_moved.loc[one_moved.category_id == 2, "x"] = 13  # 아직 겹치지만(IoU ≥ 0.9) 한 박스가 허용 오차 밖
+    with pytest.raises(AssertionError, match="같은 좌표"):
+        check_integrity(one_moved, files, c.review)
+
+
+def test_review_decision_matches_exact_pair_only():
+    """한 약이 두 결정에 나와도 감사 후보에는 정확히 같은 쌍의 결정만 붙고, 같은 박스를 고친 결정은 관련 결정으로 구분한다."""
+    from pilldet.clean import REVIEW_COLUMNS, review_decision
+
+    f, box = "K-000001-000002-000003_0_2_0_2_70_000_200.png", "[10, 10, 100, 100]"
+    tail = ["확인", "검수자", "2026-10-30", "confirmed"]
+    review = pd.DataFrame([["R001", "D_duplicate", f, 1, 2, "relocate", box, box, *tail],
+                           ["R002", "E_swapped", f, 3, 1, "swap", box, box, *tail]], columns=REVIEW_COLUMNS)
+    assert review_decision(review, f, 2, 1) == "confirmed: R001 D_duplicate relocate"  # 순서와 무관
+    assert review_decision(review, f, 1, 3) == "confirmed: R002 E_swapped swap"
+    assert review_decision(review, f, 1, 4) == "쌍 결정 없음 – 같은 박스를 고친 관련 결정: R001 relocate, R002 swap"
+    assert review_decision(review, f, 2, 3) == "기각 (육안 확인 결과 라벨이 맞음)"  # 2는 relocate의 상대 박스라 바뀌지 않음
+    assert review_decision(review, "other.png", 1, 2).startswith("기각")

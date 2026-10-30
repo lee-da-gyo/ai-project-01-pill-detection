@@ -40,6 +40,33 @@ REVIEW_ACTIONS = {"relocate", "swap", "keep_overlap"}  # keep_overlap: 실제로
 REVIEW_STATUS = {"confirmed", "pending"}
 
 
+def pair_key(file_name: str, cid: int, other: int) -> tuple:
+    """검수 결정과 감사 후보를 잇는 키: (파일, 작은 코드, 큰 코드). 두 약의 순서와 무관하게 정확히 같은 쌍만 맞는다."""
+    return (file_name, *sorted([int(cid), int(other)]))
+
+
+def review_by_pair(review: pd.DataFrame) -> dict:
+    """pair_key → 결정 행. 한 약이 여러 결정에 나와도 다른 쌍의 결정이 섞이지 않는다."""
+    return {pair_key(r.file_name, r.category_id, r.other_category_id): r for r in review.itertuples()}
+
+
+def review_decision(review: pd.DataFrame, file_name: str, cid: int, other: int) -> str:
+    """감사 후보 (파일, 라벨 약 cid, 상대 약 other)에 붙일 검수 결과.
+
+    두 약이 정확히 같은 쌍의 결정만 그 후보의 결정으로 본다. 쌍 결정이 없어도 라벨 약 cid의 박스를 옮기거나 바꾼
+    결정이 있으면 "관련 결정"으로 따로 적는다 (다른 쌍의 결정을 이 후보의 판정으로 붙이지 않는다).
+    """
+    row = review_by_pair(review).get(pair_key(file_name, cid, other))
+    if row is not None:
+        return f"{row.status}: {row.review_id} {row.rule} {row.action}"
+    moved = review[(review["file_name"] == file_name)
+                   & ((review["category_id"] == cid) & review["action"].isin(["relocate", "swap"])
+                      | (review["other_category_id"] == cid) & (review["action"] == "swap"))]
+    if len(moved):
+        return "쌍 결정 없음 – 같은 박스를 고친 관련 결정: " + ", ".join(f"{r.review_id} {r.action}" for r in moved.itertuples())
+    return "기각 (육안 확인 결과 라벨이 맞음)"
+
+
 def validate_review(review: pd.DataFrame) -> pd.DataFrame:
     """검수 결정 파일의 형식을 확인한다. 어긋나면 ValueError – 잘못된 결정이 조용히 적용되거나 무시되지 않게 한다."""
     missing = [c for c in REVIEW_COLUMNS if c not in review.columns]
@@ -47,7 +74,7 @@ def validate_review(review: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(f"검수 결정 파일에 열이 없다: {missing}")
     if review["review_id"].duplicated().any():
         raise ValueError(f"review_id 중복: {review.loc[review['review_id'].duplicated(), 'review_id'].tolist()}")
-    pair = review.apply(lambda r: (r.file_name, *sorted([int(r.category_id), int(r.other_category_id)])), axis=1)
+    pair = review.apply(lambda r: pair_key(r.file_name, r.category_id, r.other_category_id), axis=1)
     if pair.duplicated().any():
         raise ValueError(f"같은 박스 쌍에 결정이 두 개: {review.loc[pair.duplicated(), 'review_id'].tolist()}")
     if bad := sorted(set(review["action"]) - REVIEW_ACTIONS):
@@ -229,8 +256,6 @@ class LabelCleaner:
         """
         df = df.copy()
         for r in self.review[self.review["status"] == "confirmed"].itertuples():
-            if r.action == "keep_overlap":
-                continue  # 고치지 않는 결정. check_integrity가 이 쌍의 겹침을 허용한다
             cid, other = int(r.category_id), int(r.other_category_id)
             a = df.index[(df["file_name"] == r.file_name) & (df["category_id"] == cid)]
             b = df.index[(df["file_name"] == r.file_name) & (df["category_id"] == other)]
@@ -240,9 +265,12 @@ class LabelCleaner:
             a, b = a[0], b[0]
             ra = df.loc[a]
             xa, xb = df.loc[a, ["x", "y", "w", "h"]].to_numpy(float), df.loc[b, ["x", "y", "w", "h"]].to_numpy(float)
-            if not (np.allclose(xa, json.loads(r.box), atol=BOX_TOL) and np.allclose(xb, json.loads(r.other_box), atol=BOX_TOL)):
+            if not (np.allclose(xa, json.loads(r.box), atol=BOX_TOL, rtol=0)
+                    and np.allclose(xb, json.loads(r.other_box), atol=BOX_TOL, rtol=0)):
                 self._notes.append(f"{r.review_id} 적용 안 함 (검수 때 본 좌표와 다름: 이미 적용됐거나 원본이 바뀜): {r.file_name}")
                 continue
+            if r.action == "keep_overlap":
+                continue  # 고치지 않는 결정. check_integrity가 검수 때 본 좌표 그대로인 이 겹침만 허용한다
             if r.action == "relocate":
                 free = self.unmatched_segments(r.file_name, df[df.index != a])
                 if len(free) != 1:
@@ -286,18 +314,32 @@ def cross_class_overlaps(df: pd.DataFrame, iou_thr: float = None) -> pd.DataFram
     return pd.DataFrame(rows, columns=["file_name", "category_id", "other_category_id", "iou"])
 
 
-def kept_overlaps(review: pd.DataFrame | None) -> set:
-    """사람이 "실제로 겹친 알약"으로 확인한 D 후보 (file_name, 작은 코드, 큰 코드)."""
+def kept_overlaps(review: pd.DataFrame | None) -> dict:
+    """사람이 "실제로 겹친 알약"으로 확인한 D 후보: (file_name, 작은 코드, 큰 코드) → {코드: 검수 때 본 [x, y, w, h]}."""
     if review is None or review.empty:
-        return set()
+        return {}
     k = review[(review["action"] == "keep_overlap") & (review["status"] == "confirmed")]
-    return {(r.file_name, *sorted([int(r.category_id), int(r.other_category_id)])) for r in k.itertuples()}
+    return {pair_key(r.file_name, r.category_id, r.other_category_id):
+            {int(r.category_id): json.loads(r.box), int(r.other_category_id): json.loads(r.other_box)} for r in k.itertuples()}
+
+
+def _is_kept(clean: pd.DataFrame, f: str, cid: int, other: int, keep: dict) -> bool:
+    """이 겹침이 keep_overlap 결정이 있고, 두 박스가 지금도 검수 때 본 좌표와 BOX_TOL 안에서 같은가."""
+    boxes = keep.get(pair_key(f, cid, other))
+    if boxes is None:
+        return False
+    for c in (cid, other):
+        cur = clean.loc[(clean["file_name"] == f) & (clean["category_id"] == c), ["x", "y", "w", "h"]].to_numpy(float)
+        if len(cur) != 1 or not np.allclose(cur[0], boxes[c], atol=BOX_TOL, rtol=0):
+            return False
+    return True
 
 
 def check_integrity(clean: pd.DataFrame, train_files: list[str], review: pd.DataFrame | None = None) -> dict:
     """정제 결과의 무결성을 확인한다. 하나라도 어긋나면 AssertionError.
 
-    다른 약끼리 같은 좌표(D 후보)는 사람이 keep_overlap으로 확인한 쌍만 허용한다 → "미해결 D 후보 0"을 검사한다.
+    다른 약끼리 같은 좌표(D 후보)는 사람이 keep_overlap으로 확인했고 두 박스가 검수 때 본 좌표 그대로인 겹침만 허용한다
+    → "미해결 D 후보 0"을 검사한다. 같은 약 쌍이라도 좌표가 바뀐 겹침은 새 후보로 본다.
     """
     xyxy = to_xyxy(clean)
     per_img = clean.groupby("file_name")["category_id"].apply(sorted)
@@ -307,7 +349,7 @@ def check_integrity(clean: pd.DataFrame, train_files: list[str], review: pd.Data
     assert not clean.duplicated(["file_name", "category_id"]).any(), "같은 이미지에 같은 클래스 중복"
     keep = kept_overlaps(review)
     unresolved = [r for r in cross_class_overlaps(clean).itertuples()
-                  if (r.file_name, *sorted([r.category_id, r.other_category_id])) not in keep]
+                  if not _is_kept(clean, r.file_name, r.category_id, r.other_category_id, keep)]
     assert not unresolved, f"다른 약 박스가 같은 좌표에 겹쳐 있다 (D 후보 미해결): {len(unresolved)}쌍"
     mismatch = [f for f, codes in per_img.items() if list(codes) != expected_codes(f)]
     assert not mismatch, f"파일명과 라벨 불일치: {mismatch}"
