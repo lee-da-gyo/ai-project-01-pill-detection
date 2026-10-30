@@ -27,7 +27,6 @@ import hashlib  # noqa: E402
 import sys  # noqa: E402
 from pathlib import Path  # noqa: E402
 
-import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 REPO_DIR = Path(__file__).resolve().parents[1]
@@ -36,7 +35,7 @@ sys.path.insert(0, str(REPO_DIR / "scripts"))
 
 from analyze_oof import load_oof  # noqa: E402
 from pilldet.boxes import iou_matrix, to_xyxy  # noqa: E402
-from pilldet.clean import LabelCleaner, cross_class_overlaps, review_decision, validate_review  # noqa: E402
+from pilldet.clean import UNREVIEWED, LabelCleaner, cross_class_overlaps, review_decision, validate_review  # noqa: E402
 from pilldet.config import N_FOLDS, get_paths  # noqa: E402
 from pilldet.data import load_annotations  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
@@ -99,8 +98,12 @@ def main():
     print(f"출처: {cand['audit_source'].iloc[0] if len(cand) else '-'} · E 기준 신뢰도 ≥ {E_SCORE}")
     print(cand[["rule", "file_name", "name", "other_name", "evidence_auto", "review"]].to_string(index=False))
     print(f"\n후보 D {len(d)}개 · E {len(e)}개 → reports/label_audit_candidates.csv")
-    if (np.array([r.startswith("기각") for r in cand.review])).any():
-        print("기각된 후보는 원본 사진으로 확인했고 라벨이 맞았다는 뜻이다. 새 후보가 생기면 사람이 확인한 뒤 configs/label_review.csv에 적는다.")
+    unreviewed = int((cand.review == UNREVIEWED).sum())
+    if unreviewed:
+        # 검수 기록이 없는 후보를 기각(라벨이 맞음)으로 단정하지 않는다. 사람이 확인한 뒤 결정을 적어야 통과한다.
+        print(f"[경고] 미검토 후보 {unreviewed}개: 원본 사진과 다른 각도 사진으로 확인한 뒤 configs/label_review.csv에 결정"
+              "(relocate · swap · keep_overlap · keep_label)을 적고 다시 실행한다.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

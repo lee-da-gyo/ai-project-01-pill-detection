@@ -74,7 +74,7 @@ def main():
     # 오류 분해: 클래스를 모두 같은 값으로 바꾸면 "위치"만 평가된다
     agn = predict_images(weights, paths, class_map, imgsz=args.imgsz, agnostic_nms=True)
     loc = coco_map(agn.assign(category_id=0), gt_val.assign(category_id=0))
-    log(f"오류 분해 – 위치만(클래스 무시) mAP50-95 {loc['mAP50_95']:.4f} / mAP50 {loc['mAP50']:.4f}")
+    log(f"오류 분해 - 위치만(클래스 무시) mAP50-95 {loc['mAP50_95']:.4f} / mAP50 {loc['mAP50']:.4f}")
     rows.append({"method": "참고: 위치만 평가 (클래스 무시)", "mAP50_95": round(loc["mAP50_95"], 4), "mAP50": round(loc["mAP50"], 4)})
 
     # 2단계: 클래스 무관 검출 박스 → 분류기

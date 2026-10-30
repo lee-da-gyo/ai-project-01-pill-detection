@@ -194,7 +194,7 @@ def plot_failures(gtb: pd.DataFrame, pred: pd.DataFrame, names: dict, img_dir: P
             else:
                 pc, ps, note = r.pred_category_id, r.pred_score, f"IoU {r.matched_iou:.2f}"
             cases.append({"no": no, "kind": title.split(" (")[0], "true_name": names[r.category_id],
-                          "pred_name": names[int(pc)] if pd.notna(pc) else "–",
+                          "pred_name": names[int(pc)] if pd.notna(pc) else "-",
                           "score": round(float(ps), 3) if pd.notna(ps) else np.nan, "note": note, "file_name": r.file_name})
         for ax in ax_row[len(d):]:
             ax.axis("off")
@@ -411,7 +411,7 @@ def main():
     unk.to_csv(exp_dir / "error_unknown_summary.csv", index=False, encoding="utf-8-sig")
     print("\n신뢰도와 처음 보는 약 (OOF 정답 박스 기준)\n" + unk.to_string(index=False))
     print(f"이름이 2개 이상 붙은 알약 묶음 (신뢰도 ≥ {args.conf[0]}): OOF {a_o}/{n_o} ({a_o / n_o:.1%}), "
-          f"테스트 {a_t}/{n_t} ({a_t / n_t:.1%}) – 테스트는 정답이 없어 정확도로 해석하지 않는다")
+          f"테스트 {a_t}/{n_t} ({a_t / n_t:.1%}) - 테스트는 정답이 없어 정확도로 해석하지 않는다")
 
     # 6. 그림
     plot_per_class(pc, P.fig)

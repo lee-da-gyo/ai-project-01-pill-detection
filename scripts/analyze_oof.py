@@ -101,7 +101,7 @@ def main():
                 rows.append({"iou_thr": thr, "weights": cfg[1], **scores(fused_of[cfg], gt, learnable)})
         wbf = pd.DataFrame(rows).sort_values("learnable_mAP50_95", ascending=False)
         wbf.to_csv(P.out / "experiments" / "wbf_oof.csv", index=False)
-        print(f"\nWBF ({' : '.join(exps)}) – 같은 OOF에서 고른 최댓값이라 낙관적이다 (탐색용)\n" + wbf.to_string(index=False))
+        print(f"\nWBF ({' : '.join(exps)}) - 같은 OOF에서 고른 최댓값이라 낙관적이다 (탐색용)\n" + wbf.to_string(index=False))
         meta_validate(fused_of, gt, folds, learnable, P.out / "experiments" / "wbf_meta_validation.csv")
 
 

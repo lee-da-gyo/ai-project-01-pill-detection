@@ -9,7 +9,7 @@
 | B. 엉뚱한 위치 박스 | 박스 안 전경 비율 < fg_thresh, 누락 라벨이 없는 이미지, 원래 박스와 겹치지 않고 크기가 비슷한 라벨 없는 알약이 정확히 1개 | 그 알약 위치로 이동 |
 | C. 누락 박스 | 파일명의 약 코드 중 라벨 없는 코드 1개 + 라벨 없는 알약 1개 | 해당 코드로 박스 추가 |
 | D. 다른 약끼리 같은 좌표 | 한 이미지에서 다른 약 박스 쌍의 IoU ≥ 0.9 (후보만 자동 탐지) | 사람이 확인한 라벨을 라벨 없는 알약으로 이동 (실제 겹침이면 keep_overlap으로 기록) |
-| E. 라벨 교환 | OOF 예측과의 고신뢰 불일치 (모델 보조 사후 감사, scripts/audit_labels.py) | 사람이 확인한 두 박스의 약 코드를 맞바꿈 |
+| E. 라벨 교환 | OOF 예측과의 고신뢰 불일치 (모델 보조 사후 감사, scripts/audit_labels.py) | 사람이 확인한 두 박스의 약 코드를 맞바꿈 (라벨이 맞으면 keep_label로 기록) |
 
 A~D는 모델 예측을 쓰지 않는 데이터 내부 감사다. E는 모델 예측으로 후보를 만든 비독립 감사라서 성능 추정의 근거로 쓰지 않는다.
 D·E는 알약이 실제로 겹칠 수도 있고 모델이 틀릴 수도 있으므로 자동으로 고치지 않는다.
@@ -36,7 +36,9 @@ DUP_IOU = 0.9  # D 후보 기준: 서로 다른 약 박스가 이만큼 겹치�
 BOX_TOL = 1.0  # 검수 때 본 좌표와 현재 라벨 좌표의 허용 오차 (px)
 REVIEW_COLUMNS = ["review_id", "rule", "file_name", "category_id", "other_category_id", "action", "box", "other_box",
                   "evidence", "reviewer", "reviewed_at", "status"]
-REVIEW_ACTIONS = {"relocate", "swap", "keep_overlap"}  # keep_overlap: 실제로 겹친 알약이라 고치지 않음 (D 후보 기각)
+REVIEW_ACTIONS = {"relocate", "swap", "keep_overlap", "keep_label"}
+# keep_overlap: 실제로 겹친 알약이라 고치지 않음 (D 후보 기각) / keep_label: 육안 확인 결과 라벨이 맞아 고치지 않음 (E 후보 기각)
+UNREVIEWED = "미검토 (정확한 쌍 결정 없음)"
 REVIEW_STATUS = {"confirmed", "pending"}
 
 
@@ -55,6 +57,7 @@ def review_decision(review: pd.DataFrame, file_name: str, cid: int, other: int) 
 
     두 약이 정확히 같은 쌍의 결정만 그 후보의 결정으로 본다. 쌍 결정이 없어도 라벨 약 cid의 박스를 옮기거나 바꾼
     결정이 있으면 "관련 결정"으로 따로 적는다 (다른 쌍의 결정을 이 후보의 판정으로 붙이지 않는다).
+    둘 다 없으면 UNREVIEWED다. 기각(라벨이 맞음)은 keep_label · keep_overlap 결정이 있을 때만 표시된다.
     """
     row = review_by_pair(review).get(pair_key(file_name, cid, other))
     if row is not None:
@@ -63,8 +66,8 @@ def review_decision(review: pd.DataFrame, file_name: str, cid: int, other: int) 
                    & ((review["category_id"] == cid) & review["action"].isin(["relocate", "swap"])
                       | (review["other_category_id"] == cid) & (review["action"] == "swap"))]
     if len(moved):
-        return "쌍 결정 없음 – 같은 박스를 고친 관련 결정: " + ", ".join(f"{r.review_id} {r.action}" for r in moved.itertuples())
-    return "기각 (육안 확인 결과 라벨이 맞음)"
+        return "쌍 결정 없음 - 같은 박스를 고친 관련 결정: " + ", ".join(f"{r.review_id} {r.action}" for r in moved.itertuples())
+    return UNREVIEWED
 
 
 def validate_review(review: pd.DataFrame) -> pd.DataFrame:
@@ -269,8 +272,8 @@ class LabelCleaner:
                     and np.allclose(xb, json.loads(r.other_box), atol=BOX_TOL, rtol=0)):
                 self._notes.append(f"{r.review_id} 적용 안 함 (검수 때 본 좌표와 다름: 이미 적용됐거나 원본이 바뀜): {r.file_name}")
                 continue
-            if r.action == "keep_overlap":
-                continue  # 고치지 않는 결정. check_integrity가 검수 때 본 좌표 그대로인 이 겹침만 허용한다
+            if r.action in ("keep_overlap", "keep_label"):
+                continue  # 고치지 않는 결정. keep_overlap은 check_integrity가 검수 때 본 좌표 그대로인 겹침만 허용한다
             if r.action == "relocate":
                 free = self.unmatched_segments(r.file_name, df[df.index != a])
                 if len(free) != 1:

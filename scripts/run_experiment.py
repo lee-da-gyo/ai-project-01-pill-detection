@@ -167,7 +167,7 @@ def main():
         sub_dir.mkdir(exist_ok=True)
         sub.to_csv(sub_dir / f"{name}.csv", index=False)
         log.info(f"[3/4] 제출 파일: submissions/{name}.csv {check}"
-                 + ("" if spec.get("verified") else "  ⚠️ 제출 형식 미확인 (configs/submission.yaml)"))
+                 + ("" if spec.get("verified") else "  [주의] 제출 형식 미확인 (configs/submission.yaml)"))
 
     # 4. 실험 기록
     row = {"id": name.split("_")[0].upper(), "name": name, "date": date.today().isoformat(),

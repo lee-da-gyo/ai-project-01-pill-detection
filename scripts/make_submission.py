@@ -98,7 +98,7 @@ def main():
     out = REPO_DIR / "submissions" / f"{args.name}.csv"
     out.parent.mkdir(exist_ok=True)
     sub.to_csv(out, index=False)
-    log(f"제출 파일 {out.relative_to(REPO_DIR)}: {check}" + ("" if spec.get("verified") else "  ⚠️ 제출 형식 미확인"))
+    log(f"제출 파일 {out.relative_to(REPO_DIR)}: {check}" + ("" if spec.get("verified") else "  [주의] 제출 형식 미확인"))
 
 
 if __name__ == "__main__":

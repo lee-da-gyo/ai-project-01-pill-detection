@@ -427,7 +427,7 @@ def test_keep_overlap_only_exempts_reviewed_coordinates():
 
 def test_review_decision_matches_exact_pair_only():
     """한 약이 두 결정에 나와도 감사 후보에는 정확히 같은 쌍의 결정만 붙고, 같은 박스를 고친 결정은 관련 결정으로 구분한다."""
-    from pilldet.clean import REVIEW_COLUMNS, review_decision
+    from pilldet.clean import REVIEW_COLUMNS, UNREVIEWED, review_decision
 
     f, box = "K-000001-000002-000003_0_2_0_2_70_000_200.png", "[10, 10, 100, 100]"
     tail = ["확인", "검수자", "2026-10-30", "confirmed"]
@@ -435,6 +435,44 @@ def test_review_decision_matches_exact_pair_only():
                            ["R002", "E_swapped", f, 3, 1, "swap", box, box, *tail]], columns=REVIEW_COLUMNS)
     assert review_decision(review, f, 2, 1) == "confirmed: R001 D_duplicate relocate"  # 순서와 무관
     assert review_decision(review, f, 1, 3) == "confirmed: R002 E_swapped swap"
-    assert review_decision(review, f, 1, 4) == "쌍 결정 없음 – 같은 박스를 고친 관련 결정: R001 relocate, R002 swap"
-    assert review_decision(review, f, 2, 3) == "기각 (육안 확인 결과 라벨이 맞음)"  # 2는 relocate의 상대 박스라 바뀌지 않음
-    assert review_decision(review, "other.png", 1, 2).startswith("기각")
+    assert review_decision(review, f, 1, 4) == "쌍 결정 없음 - 같은 박스를 고친 관련 결정: R001 relocate, R002 swap"
+    assert review_decision(review, f, 2, 3) == UNREVIEWED  # 2는 relocate의 상대 박스라 바뀌지 않음
+    assert review_decision(review, "other.png", 1, 2) == UNREVIEWED
+
+
+def test_new_candidate_is_unreviewed_until_keep_label_is_recorded():
+    """검수 기록이 없는 새 후보는 기각(라벨이 맞음)으로 단정하지 않고, keep_label 결정을 적어야 기각으로 표시된다."""
+    from pilldet.clean import REVIEW_COLUMNS, UNREVIEWED, review_decision
+
+    raw, _ = _review_case()
+    f, box = raw.file_name[2], "[10, 10, 100, 100]"
+    empty = pd.DataFrame(columns=REVIEW_COLUMNS)
+    assert review_decision(empty, f, 3, 4) == UNREVIEWED
+    rows = [["R009", "E_model_audit", f, 3, 4, "keep_label", box, "[300, 300, 100, 100]", "확인", "검수자", "2026-10-30", "confirmed"]]
+    _, c = _review_case(rows)
+    assert review_decision(c.review, f, 4, 3) == "confirmed: R009 E_model_audit keep_label"
+    pd.testing.assert_frame_equal(c.apply_review(raw), raw)  # 라벨은 그대로
+
+
+def test_console_messages_encode_in_cp949():
+    """Windows 기본 콘솔(cp949)에서 print · 로그가 UnicodeEncodeError로 멈추지 않도록, 출력 문자열에 cp949 밖 문자가 없는지 본다."""
+    import ast
+
+    from pilldet.clean import REVIEW_COLUMNS, review_decision
+
+    repo, bad = Path(__file__).resolve().parents[1], []
+    for f in sorted([*(repo / "scripts").glob("*.py"), *(repo / "src" / "pilldet").glob("*.py")]):
+        for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+            is_out = isinstance(node, ast.Call) and (getattr(node.func, "attr", None) or getattr(node.func, "id", "")) in                 {"print", "log", "info", "warning", "append"}
+            if is_out or isinstance(node, ast.Return):
+                for sub in ast.walk(node):
+                    if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+                        try:
+                            sub.value.encode("cp949")
+                        except UnicodeEncodeError:
+                            bad.append(f"{f.name}:{sub.lineno}")
+    assert not bad, bad
+    review = pd.DataFrame([["R001", "D_duplicate", "a.png", 1, 2, "relocate", "[0, 0, 1, 1]", "[0, 0, 1, 1]", "확인", "검수자",
+                            "2026-10-30", "confirmed"]], columns=REVIEW_COLUMNS)
+    for cid, other in [(1, 2), (1, 3), (2, 3)]:  # 직접 결정 · 관련 결정 · 미검토 문구 모두
+        review_decision(review, "a.png", cid, other).encode("cp949")

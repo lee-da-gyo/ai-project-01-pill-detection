@@ -52,7 +52,7 @@ def main():
             loss = [round(c.max() - c[e], 4) if e in c.index else None for c in curves]
             done = [v for v in loss if v is not None]
             rows.append({"experiment": exp, "후보": label, "epoch": e, "best_epochs": "/".join(map(str, best_epochs)),
-                         "fold별_손해": " / ".join("–" if v is None else f"{v:.3f}" for v in loss),
+                         "fold별_손해": " / ".join("-" if v is None else f"{v:.3f}" for v in loss),
                          "평균_손해": round(float(np.mean(done)), 4), "최대_손해": round(max(done), 4),
                          "학습한_fold": len(done)})
     res = pd.DataFrame(rows)
