@@ -1,4 +1,4 @@
-"""최종 제출 파일 생성 – 여러 모델의 테스트 예측을 WBF로 합친다.
+"""최종 제출 파일 생성 - 여러 모델의 테스트 예측을 WBF로 합친다.
 
 사용법
     python scripts/make_submission.py --runs final_yolo11s final_yolo11m --name final_ensemble

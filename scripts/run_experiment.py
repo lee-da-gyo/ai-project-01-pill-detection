@@ -7,8 +7,8 @@
     python scripts/run_experiment.py --config configs/e0_baseline.yaml --skip-train   # 학습 결과로 평가만 다시
 
 산출물
-    runs/<name>/                          학습 결과 (가중치, 그래프) – git 제외
-    submissions/<name>.csv                Kaggle 제출 파일 – git 제외
+    runs/<name>/                          학습 결과 (가중치, 그래프) - git 제외
+    submissions/<name>.csv                Kaggle 제출 파일 - git 제외
     reports/experiments.csv               실험 기록 (한 줄 추가)
     reports/experiments/<name>/           지표, 클래스별 AP, 학습 곡선, 혼동 행렬
     reports/logs/<name>.log               실행 로그

@@ -455,24 +455,62 @@ def test_new_candidate_is_unreviewed_until_keep_label_is_recorded():
 
 
 def test_console_messages_encode_in_cp949():
-    """Windows 기본 콘솔(cp949)에서 print · 로그가 UnicodeEncodeError로 멈추지 않도록, 출력 문자열에 cp949 밖 문자가 없는지 본다."""
+    """Windows 기본 콘솔(cp949)에서 print · 로그 · --help가 UnicodeEncodeError로 멈추지 않도록 출력 문자열을 검사한다."""
     import ast
 
     from pilldet.clean import REVIEW_COLUMNS, review_decision
 
+    out_calls = {"print", "log", "info", "warning", "append"}
     repo, bad = Path(__file__).resolve().parents[1], []
     for f in sorted([*(repo / "scripts").glob("*.py"), *(repo / "src" / "pilldet").glob("*.py")]):
-        for node in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
-            is_out = isinstance(node, ast.Call) and (getattr(node.func, "attr", None) or getattr(node.func, "id", "")) in                 {"print", "log", "info", "warning", "append"}
-            if is_out or isinstance(node, ast.Return):
-                for sub in ast.walk(node):
-                    if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
-                        try:
-                            sub.value.encode("cp949")
-                        except UnicodeEncodeError:
-                            bad.append(f"{f.name}:{sub.lineno}")
+        tree = ast.parse(f.read_text(encoding="utf-8"))
+        texts = []
+        if f.parent.name == "scripts" and ast.get_docstring(tree):  # 스크립트 설명은 argparse --help로 출력된다
+            texts.append((1, ast.get_docstring(tree, clean=False)))
+        for node in ast.walk(tree):
+            name = getattr(node.func, "attr", None) or getattr(node.func, "id", "") if isinstance(node, ast.Call) else None
+            if name in out_calls or isinstance(node, ast.Return):
+                texts += [(sub.lineno, sub.value) for sub in ast.walk(node) if isinstance(sub, ast.Constant) and isinstance(sub.value, str)]
+        for lineno, text in texts:
+            try:
+                text.encode("cp949")
+            except UnicodeEncodeError:
+                bad.append(f"{f.name}:{lineno}")
     assert not bad, bad
     review = pd.DataFrame([["R001", "D_duplicate", "a.png", 1, 2, "relocate", "[0, 0, 1, 1]", "[0, 0, 1, 1]", "확인", "검수자",
                             "2026-10-30", "confirmed"]], columns=REVIEW_COLUMNS)
     for cid, other in [(1, 2), (1, 3), (2, 3)]:  # 직접 결정 · 관련 결정 · 미검토 문구 모두
         review_decision(review, "a.png", cid, other).encode("cp949")
+
+
+def test_review_semantic_validation():
+    """검수 결정의 의미 제약: 규칙별 허용 결정, 서로 다른 약, 검수 메타데이터, ISO 날짜, 유한한 양수 크기 좌표."""
+    raw, _ = _review_case()
+    f, box = raw.file_name[0], "[10, 10, 100, 100]"
+
+    def row(**kw):
+        r = dict(review_id="R001", rule="D_duplicate", file_name=f, category_id=2, other_category_id=1, action="relocate",
+                 box=box, other_box=box, evidence="확인", reviewer="검수자", reviewed_at="2026-10-30", status="confirmed")
+        return [list({**r, **kw}.values())]
+
+    for kw, msg in [(dict(action="swap"), "허용되지 않는다"), (dict(rule="E_swapped"), "허용되지 않는다"),
+                    (dict(rule="X"), "허용되지 않는다"), (dict(other_category_id=2), "같다"),
+                    (dict(reviewer=" "), "reviewer"), (dict(evidence=""), "evidence"),
+                    (dict(reviewed_at="30/10/2026"), "YYYY-MM-DD"), (dict(box="[10, 10, 0, 100]"), "w·h"),
+                    (dict(box="[10, 10, NaN, 100]"), "유한"), (dict(other_box="[a]"), "형식")]:
+        with pytest.raises(ValueError, match=msg):
+            _review_case(row(**kw))
+    _review_case(row(rule="E_model_audit", action="keep_label"))  # 허용 조합은 통과
+
+
+def test_manifest_digest_tracks_names_boundaries_and_ignores_line_endings(tmp_path):
+    manifest_digest = _load_script("audit_labels").manifest_digest
+
+    (tmp_path / "a.csv").write_bytes(b"x,y\n1,2\n")
+    (tmp_path / "b.csv").write_bytes(b"3\n")
+    base = manifest_digest({tmp_path: [tmp_path / "a.csv", tmp_path / "b.csv"]})
+    (tmp_path / "a.csv").write_bytes(b"x,y\r\n1,2\r\n")  # 줄바꿈만 다름 → 같은 값
+    assert manifest_digest({tmp_path: [tmp_path / "b.csv", tmp_path / "a.csv"]}) == base
+    (tmp_path / "a.csv").write_bytes(b"x,y\n1,")  # 파일 경계가 바뀌면(내용을 이어 붙이면 같아도) 다른 값
+    (tmp_path / "b.csv").write_bytes(b"2\n3\n")
+    assert manifest_digest({tmp_path: [tmp_path / "a.csv", tmp_path / "b.csv"]}) != base

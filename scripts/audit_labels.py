@@ -1,4 +1,4 @@
-"""라벨 감사 후보 목록 – D(데이터 내부)와 E(모델 보조 사후 감사).
+"""라벨 감사 후보 목록 - D(데이터 내부)와 E(모델 보조 사후 감사).
 
 정제 규칙 A~C를 적용한 뒤, 사람 확인 결정(configs/label_review.csv)을 적용하기 전 라벨에서 후보를 찾는다.
 - D: 한 이미지 안에서 다른 약 박스 쌍의 IoU ≥ 0.9. 모델 예측을 쓰지 않는다.
@@ -7,8 +7,13 @@
      처음 보는 약은 모델이 그 이름을 낼 수 없어 항상 불일치하므로 후보에서 뺀다.
 후보는 자동으로 고치지 않는다. 원본 사진과 같은 조합의 다른 각도 사진으로 확인한 뒤 configs/label_review.csv에 적는다.
 
-E 후보는 어떤 모델·앙상블 설정의 OOF를 썼는지에 따라 달라진다. 그래서 결과 파일에 출처(실험 이름, WBF 가중치·IoU,
-OOF 예측 파일의 SHA-256 앞 12자리)를 함께 적는다. 같은 출처면 같은 후보가 나온다.
+후보는 OOF 예측뿐 아니라 원본 라벨·이미지(A~C 정제에 씀), fold 구성, 코드에 따라서도 달라진다. 그래서 결과 파일에
+출처(실험 이름, WBF 가중치·IoU)와 세 묶음의 manifest 해시를 함께 적는다. manifest는 파일마다 (상대 경로, 크기, SHA-256)을
+이어 붙여 다시 SHA-256을 낸 값의 앞 12자리라, 파일 경계·이름이 바뀌어도 값이 달라진다.
+- 예측: OOF val_predictions.csv 10개
+- 입력: 원본 라벨 JSON, 학습 이미지, folds.csv, class_map.csv, configs/label_review.csv
+- 코드: src/pilldet/*.py, scripts/audit_labels.py, scripts/analyze_oof.py
+세 해시가 같으면 같은 후보가 나온다.
 
 사용법
     python scripts/audit_labels.py                                 # OOF: e0_baseline + e2_yolo11m WBF (2:1, IoU 0.7)
@@ -41,6 +46,23 @@ from pilldet.data import load_annotations  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
 
 E_SCORE = 0.9
+
+
+TEXT_SUFFIXES = {".py", ".csv", ".json"}
+
+
+def manifest_digest(groups: dict[Path, list[Path]]) -> str:
+    """파일 묶음의 manifest 해시 (앞 12자리). {기준 폴더: 파일 목록}의 파일마다 "상대 경로<TAB>크기<TAB>sha256" 한 줄을
+    정렬해 이어 붙인 뒤 SHA-256. 기준 폴더로부터의 상대 경로라 저장소·데이터 폴더 위치가 달라도 값이 같고,
+    텍스트 파일은 줄바꿈을 LF로 맞춘 뒤 재므로 체크아웃한 운영체제(CRLF/LF)와도 무관하다."""
+    lines = []
+    for root, files in groups.items():
+        for f in files:
+            data = f.read_bytes()
+            if f.suffix in TEXT_SUFFIXES:
+                data = data.replace(b"\r\n", b"\n")
+            lines.append(f"{f.relative_to(root).as_posix()}\t{len(data)}\t{hashlib.sha256(data).hexdigest()}")
+    return hashlib.sha256("\n".join(sorted(lines)).encode()).hexdigest()[:12]
 
 
 def model_disagreements(pred: pd.DataFrame, gt: pd.DataFrame, learnable: set, min_score: float = E_SCORE) -> pd.DataFrame:
@@ -89,10 +111,18 @@ def main():
     cand["name"] = cand.category_id.map(names)
     cand["other_name"] = cand.other_category_id.map(names)
     cand["review"] = [review_decision(review, r.file_name, r.category_id, r.other_category_id) for r in cand.itertuples()]
-    files = [P.out / "experiments" / (e if k == 0 else f"{e}_f{k}") / "val_predictions.csv" for e in args.exps for k in range(N_FOLDS)]
-    digest = hashlib.sha256(b"".join(f.read_bytes() for f in files)).hexdigest()[:12]
+    pred_files = [P.out / "experiments" / (e if k == 0 else f"{e}_f{k}") / "val_predictions.csv"
+                  for e in args.exps for k in range(N_FOLDS)]
+    ann_files, img_files = sorted(P.ann.rglob("*.json")), sorted(P.train_img.glob("*.png"))
+    meta_files = [P.out / "folds.csv", P.out / "class_map.csv", REPO_DIR / "configs" / "label_review.csv"]
+    code_files = [*sorted((REPO_DIR / "src" / "pilldet").glob("*.py")), REPO_DIR / "scripts" / "audit_labels.py",
+                  REPO_DIR / "scripts" / "analyze_oof.py"]
+    data_root = P.ann.parent  # 원본 데이터 폴더는 저장소 밖에 있을 수 있다
     cand["audit_source"] = (f"OOF {' + '.join(args.exps)} · WBF {':'.join(f'{w:g}' for w in args.weights)}, IoU {args.iou_thr} · "
-                            f"예측 파일 {len(files)}개 sha256 {digest}")
+                            f"manifest 예측 {manifest_digest({REPO_DIR: pred_files})} (파일 {len(pred_files)}개) · "
+                            f"입력 {manifest_digest({data_root: [*ann_files, *img_files], REPO_DIR: meta_files})} "
+                            f"(라벨 {len(ann_files)} · 이미지 {len(img_files)} · folds · class_map · 검수 결정) · "
+                            f"코드 {manifest_digest({REPO_DIR: code_files})} (파일 {len(code_files)}개)")
     cols = ["rule", "file_name", "category_id", "name", "other_category_id", "other_name", "evidence_auto", "review", "audit_source"]
     cand[cols].to_csv(P.out / "label_audit_candidates.csv", index=False, encoding="utf-8-sig")
     print(f"출처: {cand['audit_source'].iloc[0] if len(cand) else '-'} · E 기준 신뢰도 ≥ {E_SCORE}")

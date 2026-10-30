@@ -1,4 +1,4 @@
-"""이미 학습한 5-Fold 모델로 검증 예측(OOF)만 다시 만든다 – 학습 없이 추론 설정(TTA 등)을 비교할 때 쓴다.
+"""이미 학습한 5-Fold 모델로 검증 예측(OOF)만 다시 만든다 - 학습 없이 추론 설정(TTA 등)을 비교할 때 쓴다.
 
 fold k의 모델(runs/<exp>[_f<k>]/weights/best.pt)로 fold k의 검증 이미지만 예측하므로, 학습 때와 같은 누수 없는 OOF가 된다.
 결과는 새 실험 이름(<exp>_<tag>)으로 저장해 analyze_oof.py · compare_oof.py에 그대로 넣을 수 있다.

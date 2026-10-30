@@ -21,6 +21,7 @@ D·E는 알약이 실제로 겹칠 수도 있고 모델이 틀릴 수도 있으�
 
 import json
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -40,6 +41,8 @@ REVIEW_ACTIONS = {"relocate", "swap", "keep_overlap", "keep_label"}
 # keep_overlap: 실제로 겹친 알약이라 고치지 않음 (D 후보 기각) / keep_label: 육안 확인 결과 라벨이 맞아 고치지 않음 (E 후보 기각)
 UNREVIEWED = "미검토 (정확한 쌍 결정 없음)"
 REVIEW_STATUS = {"confirmed", "pending"}
+RULE_ACTIONS = {"D_duplicate": {"relocate", "keep_overlap"},  # 감사 규칙별로 허용되는 결정
+                "E_swapped": {"swap"}, "E_model_audit": {"keep_label"}}
 
 
 def pair_key(file_name: str, cid: int, other: int) -> tuple:
@@ -84,10 +87,26 @@ def validate_review(review: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(f"알 수 없는 action: {bad}")
     if bad := sorted(set(review["status"]) - REVIEW_STATUS):
         raise ValueError(f"알 수 없는 status: {bad}")
-    for col in ("box", "other_box"):
-        for v in review[col]:
-            if len(json.loads(v)) != 4:
-                raise ValueError(f"{col}은 [x, y, w, h] 형식이어야 한다: {v}")
+    for r in review.itertuples():
+        if r.rule not in RULE_ACTIONS or r.action not in RULE_ACTIONS[r.rule]:
+            raise ValueError(f"{r.review_id}: rule {r.rule}에 action {r.action}은 허용되지 않는다 ({RULE_ACTIONS})")
+        if int(r.category_id) == int(r.other_category_id):
+            raise ValueError(f"{r.review_id}: 두 약 코드가 같다 ({r.category_id})")
+        for col in ("evidence", "reviewer", "reviewed_at"):
+            if pd.isna(getattr(r, col)) or not str(getattr(r, col)).strip():
+                raise ValueError(f"{r.review_id}: {col}이 비어 있다")
+        try:
+            date.fromisoformat(str(r.reviewed_at))
+        except ValueError:
+            raise ValueError(f"{r.review_id}: reviewed_at은 YYYY-MM-DD 형식이어야 한다 ({r.reviewed_at})") from None
+        for col in ("box", "other_box"):
+            v = getattr(r, col)
+            try:
+                b = np.asarray(json.loads(v), float)
+            except (ValueError, TypeError):
+                raise ValueError(f"{r.review_id}: {col}은 [x, y, w, h] 형식이어야 한다 ({v})") from None
+            if b.shape != (4,) or not np.isfinite(b).all() or b[2] <= 0 or b[3] <= 0:
+                raise ValueError(f"{r.review_id}: {col}은 [x, y, w, h] 형식이어야 한다 (유한한 숫자 4개, w·h > 0): {v}")
     return review
 
 

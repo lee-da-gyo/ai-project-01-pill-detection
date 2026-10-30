@@ -439,7 +439,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
   <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 오류 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
   <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
-  <tr><td><code>tests/</code></td><td>단위 테스트 35개 (좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 검사, 검사 로직)</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 함수 35개 (매개변수 포함 37개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
 </table>
 <h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
 <ul>
@@ -449,7 +449,8 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
     이미 고친 결과에 다시 적용하면 건너뛰므로(라벨 교환이 원상복귀하지 않음) 몇 번 실행해도 같고, 원본이 바뀌면 엉뚱한 박스를 고치지 않는다.
     고치지 않는 결정(keep_overlap)도 같은 조건이라, 두 박스가 함께 다른 곳으로 옮겨진 겹침은 무결성 검사에서 새 후보로 잡힌다.
     감사 후보에는 두 약이 정확히 같은 쌍의 결정만 붙이고, 결정이 없는 후보는 "미검토"로 표시한 뒤 감사 스크립트를 실패로 끝낸다(라벨이 맞다는 기각은 keep_label 결정으로만 기록).
-    결정 파일의 형식(중복 ID, 같은 박스 쌍의 중복 결정, 알 수 없는 action · status, 좌표 형식)이 어긋나면 멈춘다.</li>
+    결정 파일의 형식(중복 ID, 같은 박스 쌍의 중복 결정, 알 수 없는 action · status, 규칙별 허용 결정, 같은 약 코드, 빈 검수자 · 근거 · 날짜, 날짜 형식, 좌표가 유한한 양수 크기인지)이 어긋나면 멈춘다.
+    감사 결과에는 예측 · 입력(원본 라벨 · 이미지 · fold · 검수 결정) · 코드 세 묶음의 manifest 해시를 함께 적는다.</li>
   <li><b>전처리 일치</b>: 학습용으로 저장한 이미지와 예측 때 실시간으로 전처리한 배열이 픽셀 단위로 같은지 테스트한다.</li>
   <li><b>제출 파일 검사</b>: 컬럼 순서, 테스트에 있는 이미지 번호, 학습에 있는 약 코드, 이미지 안의 박스, 점수 범위, 중복 예측을 제출 전에 검사하고, 예측이 없는 테스트 이미지 수를 기록한다.</li>
 </ul>
@@ -557,7 +558,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R5</td><td>파일 구조·메타데이터 확인</td><td>파일명 ↔ 라벨 대조, 무결성 검사, 라벨 감사 A~E, 라벨 오류 15건 수정 (보고서 3장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R6</td><td>전처리</td><td>해상도 640/960/1280 (6.1절), CLAHE 5-Fold 전후 비교 (6.5절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R7</td><td>데이터 증강</td><td>상하 뒤집기·밝기·Copy-Paste 전후 비교 (6.1·6.4절)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 35개 (9장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 35개 (9장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R9</td><td>VGG·ResNet·YOLO 등 모델</td><td>YOLO11n·s·m·YOLO26s, VGG16·ResNet50·EfficientNet-B0 (6.1·6.3절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>
