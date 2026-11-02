@@ -13,7 +13,7 @@
 - 예측: OOF val_predictions.csv 10개
 - 입력: 원본 라벨 JSON, 학습 이미지, folds.csv, class_map.csv, configs/label_review.csv
 - 코드: src/pilldet/*.py, scripts/audit_labels.py, scripts/analyze_oof.py
-세 해시가 같으면 같은 후보가 나온다.
+동일한 의존성 환경(requirements.txt 고정 버전 · 같은 Python)에서 세 해시가 같으면 같은 후보가 나와야 한다. 실행 환경은 해시에 들어가지 않는다.
 
 사용법
     python scripts/audit_labels.py                                 # OOF: e0_baseline + e2_yolo11m WBF (2:1, IoU 0.7)

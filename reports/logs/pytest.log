@@ -1,7 +1,7 @@
 ============================= test session starts =============================
 platform win32 -- Python 3.14.6, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\user\anaconda3\python.exe
 cachedir: .pytest_cache
-rootdir: C:\Users\user\Desktop\ai_15Í∏∞\###ÌîÑÎ°úÏ†ùÌä∏\pill-detection
+rootdir: C:\Users\user\Desktop\ai_15±‚\###«¡∑Œ¡ß∆Æ\pill-detection
 plugins: anyio-4.12.1
 collecting ... collected 37 items
 
@@ -43,4 +43,4 @@ tests/test_core.py::test_console_messages_encode_in_cp949 PASSED         [ 94%]
 tests/test_core.py::test_review_semantic_validation PASSED               [ 97%]
 tests/test_core.py::test_manifest_digest_tracks_names_boundaries_and_ignores_line_endings PASSED [100%]
 
-============================= 37 passed in 11.03s =============================
+============================= 37 passed in 6.06s ==============================
