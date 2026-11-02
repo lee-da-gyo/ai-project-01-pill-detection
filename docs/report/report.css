@@ -58,4 +58,4 @@ figcaption { font-size: 7.8pt; color: var(--sub); margin-top: 3pt; }
 .refs { font-size: 8.4pt; padding-left: 20pt; }
 .refs li { margin: 2pt 0; }
 sup.ref { font-size: 7pt; color: var(--accent); }
-.appx { font-size: 7pt; } .appx td, .appx th { padding: 0.6pt 4pt; line-height: 1.25; }
+.appx { font-size: 8pt; } .appx td, .appx th { padding: 1.2pt 4pt; line-height: 1.3; }

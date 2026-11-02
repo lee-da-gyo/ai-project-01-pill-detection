@@ -92,10 +92,10 @@ def plot_per_class(pc: pd.DataFrame, fig_dir: Path, n_low: int = 10):
     ax.axvline(med, color="gray", ls=":", lw=1)
     ax.text(med, len(d) - 0.4, f" 37종 중앙값 {med:.3f}", fontsize=9.5, color="gray")
     ax.set_xlabel("AP (5-Fold OOF)", fontsize=10.5)
-    ax.legend(fontsize=9.5, loc="lower right", frameon=False)
+    ax.legend(fontsize=9.5, loc="upper right", bbox_to_anchor=(1.0, 0.92), frameon=False)
     n_un = int((~pc.learnable).sum())
     ax.set_title(f"학습 가능 37종 중 AP50-95 하위 {n_low}종 (11s+11m WBF)\n"
-                 f"처음 보는 {n_un}종은 검증 때 학습에 없어 모두 AP 0 · 56종 전체는 부록 A", fontsize=11.5)
+                 f"처음 보는 {n_un}종은 검증 때 학습에 없어 AP가 0에 가깝다 · 56종 전체는 부록 A", fontsize=11.5)
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     save_fig(fig, fig_dir, "20_per_class_ap")
