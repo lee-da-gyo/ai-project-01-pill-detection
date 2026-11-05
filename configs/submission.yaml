@@ -1,5 +1,5 @@
 # Kaggle 제출 파일 형식
-# ⚠️ 대회 페이지의 sample_submission.csv로 확인 전 (가정). 확인 후 아래 값만 고친다.
+# 대회 안내의 형식과 대조했고, 11/05 제출 4건이 정상 채점되어 형식과 약 코드 체계를 확인했다.
 columns:
   annotation_id: annotation_id
   image_id: image_id
@@ -11,4 +11,4 @@ columns:
   score: score
 order: [annotation_id, image_id, category_id, bbox_x, bbox_y, bbox_w, bbox_h, score]
 round: 2
-verified: false
+verified: true
