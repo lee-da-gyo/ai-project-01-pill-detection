@@ -496,7 +496,14 @@ python scripts/run_experiment.py --config configs/e4_clahe.yaml
 python scripts/compare_oof.py e0_baseline e4_clahe
 python scripts/error_analysis.py                                     # 현재 최종 후보(11s+11m WBF) OOF 오류 분석
 
-# 최종 모델 (232장 전체 · 검증 없음 · last.pt) → 제출 파일
+# ★ Kaggle 최고 점수 모델 재현 (public 0.63017, YOLO11s + 허용 AI Hub 조합 데이터)
+#   라벨 TL_1,3~8_조합.zip과 이미지 TS_1,3~8_조합.zip을 받아 둔다 (금지 파일 TL_2·TS_2는 쓰지 않으며, 있어도 건너뛴다)
+python scripts/prepare_aihub.py --labels <라벨 zip 폴더> --images <이미지 zip 폴더>
+python scripts/train_aihub.py --config configs/a1_aihub_yolo11s.yaml         # 검증 학습 → best epoch 28
+python scripts/train_aihub.py --config configs/a2_aihub_full_yolo11s.yaml    # 전체 데이터 28 에포크
+python scripts/make_submission.py --runs a2_aihub_full_yolo11s --name a2_aihub_full_11s --class-map class_map_aihub.csv
+
+# 추가 데이터를 쓰기 전 최종 모델 (232장 전체 · 검증 없음 · last.pt) → 제출 파일
 python scripts/run_experiment.py --config configs/final_yolo11s.yaml
 python scripts/run_experiment.py --config configs/final_yolo11m.yaml
 python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2 1 --iou-thr 0.6 --name final_11s_11m_wbf_iou06
@@ -507,6 +514,7 @@ python scripts/predict_oof.py e0_baseline --tta                      # 학습 �
 
 # 보고서 PDF · 데모 앱
 python scripts/build_report.py                                       # docs/report/report.pdf (Edge 인쇄 엔진)
+python scripts/build_worklog.py                                      # docs/worklog/worklog.pdf
 streamlit run app/demo.py
 ```
 
@@ -538,7 +546,7 @@ streamlit run app/demo.py
 | 문서 | 내용 |
 |:---|:---|
 | 📅 [일정표](docs/PLAN.md) | 날짜별 할 일 · 마감 · 실험 기록 표 |
-| 📝 [업무일지](docs/worklog) | 매일의 작업 · 고민 · 실수와 교훈 |
+| 📝 [업무일지 PDF](docs/worklog/worklog.pdf) · [원본](docs/worklog) | 매일의 작업 · 고민 · 실수와 교훈 |
 | 📄 [보고서 PDF](docs/report/report.pdf) | 문제 정의 → EDA → 정제 → 검증 → 실험 → 결과 분석 → 시사점 (내려받기) |
 | ✅ [라벨 검수 기록](docs/LABEL_REVIEW.md) | 라벨 수정 15건의 근거 |
 
