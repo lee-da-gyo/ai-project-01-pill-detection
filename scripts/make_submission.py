@@ -52,7 +52,7 @@ def weights_of(run: str) -> tuple[Path, int, str | None]:
         snap = yaml.safe_load(f)
     if snap.get("single_cls"):
         raise ValueError(f"{run}은 1-클래스 검출기라 약 이름을 낼 수 없다")
-    full = Path(str(snap["data"])).stem.startswith("data_full")
+    full = "full" in Path(str(snap["data"])).stem
     if full and snap.get("val", True):
         raise ValueError(f"{run}: 전체 데이터 학습인데 검증이 켜져 있다 → best.pt를 믿을 수 없다")
     w = run_dir / "weights" / ("last.pt" if full else "best.pt")
@@ -70,6 +70,7 @@ def main():
     ap.add_argument("--iou-thr", type=float, default=0.6)
     ap.add_argument("--conf", type=float, default=0.001, help="mAP 평가는 낮은 점수 예측까지 순위로 쓴다")
     ap.add_argument("--max-det", type=int, default=100, help="COCO maxDets=100")
+    ap.add_argument("--class-map", default="class_map.csv", help="reports/ 아래 클래스 표. AI Hub 학습 모델은 class_map_aihub.csv")
     args = ap.parse_args()
 
     P = get_paths(REPO_DIR)
@@ -78,7 +79,7 @@ def main():
                         handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler(log_path, "w", "utf-8")], force=True)
     log = logging.getLogger().info
 
-    class_map = pd.read_csv(P.out / "class_map.csv")
+    class_map = pd.read_csv(P.out / args.class_map)
     test_paths = list_test_images(P.test_img)
     preds = []
     for run in args.runs:

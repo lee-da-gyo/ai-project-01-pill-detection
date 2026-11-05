@@ -1,0 +1,11 @@
+# A0 – 흐름과 속도 확인용 시험 학습. AI Hub 조합 묶음 1개만 쓰며, 최종 판단에 쓰지 않는다.
+name: a0_aihub_pilot_yolo11s
+description: YOLO11s, 640px, AI Hub 조합 묶음 1개 + 대회 fold 0 제외, 15 에포크 시험
+model: yolo11s.pt
+data: data_aihub_fold0.yaml
+imgsz: 640
+epochs: 15
+patience: 0
+batch: 16
+optimizer: auto
+workers: 4

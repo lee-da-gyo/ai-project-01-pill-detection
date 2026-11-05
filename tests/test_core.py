@@ -549,3 +549,44 @@ def test_eval_config_controls_metric_and_rejects_unsupported(monkeypatch):
         m.setitem(evaluate.EVAL_CONFIG, "max_dets", 10)  # 상위 10개만 보면 맞는 박스가 잘린다
         assert evaluate.coco_map(many, gt)["mAP75_95"] == 0
 
+
+def _load_prepare_aihub():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("prepare_aihub", Path(__file__).resolve().parents[1] / "scripts" / "prepare_aihub.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_aihub_filter_keeps_only_images_whose_boxes_match_codes():
+    m = _load_prepare_aihub()
+    base = {"x": 10.0, "y": 10.0, "w": 100.0, "h": 100.0, "img_w": 976, "img_h": 1280}
+    good, missing, wrong = "K-000001-000002_a.png", "K-000003-000004_a.png", "K-000005-000006_a.png"
+    outside = "K-000007_a.png"
+    df = pd.DataFrame([{**base, "file_name": good, "code": 1}, {**base, "file_name": good, "code": 2},
+                       {**base, "file_name": missing, "code": 3},
+                       {**base, "file_name": wrong, "code": 5}, {**base, "file_name": wrong, "code": 9},
+                       {**base, "file_name": outside, "code": 7, "x": 900.0}])
+    kept, stat = m.filter_complete(df)
+    assert set(kept.file_name) == {good}
+    assert stat["약 코드와 박스가 맞지 않는 이미지"] == 2 and stat["이미지 밖 또는 너무 작은 박스가 있는 이미지"] == 1
+
+
+def test_aihub_forbidden_files_are_never_used(tmp_path):
+    import zipfile
+
+    m = _load_prepare_aihub()
+    for n in ["TL_1_조합.zip", "TL_2_조합.zip", "TS_2_조합.zip", "TS_3_조합.zip"]:
+        with zipfile.ZipFile(tmp_path / n, "w") as z:
+            z.writestr("a.txt", "x")
+    (tmp_path / "TS_4_조합.zip").write_bytes(b"")  # 받는 중인 빈 파일
+    assert set(m.allowed_zips(tmp_path, lambda _: None)) == {"T1", "T3"}
+
+
+def test_aihub_holdout_is_by_combo_and_order_independent():
+    m = _load_prepare_aihub()
+    combos = [f"K-{i:06d}" for i in range(100)]
+    a = m.split_holdout(combos + combos)
+    assert len(a) == 10 and a == m.split_holdout(list(reversed(combos)))
+

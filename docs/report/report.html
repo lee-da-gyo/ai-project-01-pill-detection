@@ -329,7 +329,10 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <li><b>이것만으로 전부 설명되는지는 불확실하다:</b> AP 0.95 · 학습 56종이 모두 테스트에 있다고 가정하면 0.413은 전체 약 129종, 즉 없는 클래스 약 73종에 해당한다. 반면 테스트 예측의 신뢰도 분포를 OOF의 처음 보는 약과 비교하면 그런 박스는 약 9~11%로 추정된다(최종 모델은 전체 데이터로 학습해 신뢰도 분포가 달라 거친 값이다). 둘이 맞으려면 없는 클래스마다 박스가 아주 적어야 한다.</li>
   <li><b>다른 가능성:</b> 한 조합에서만 학습한 19종의 낮은 AP, 안내에 언급된 데이터 오류, 주최 측 평가 구현과 대리지표의 차이, public 표본의 영향. 이번 자료로는 나눌 수 없다.</li>
 </ul>
-<p><b>놓친 개선 방향:</b> 대회 안내상 금지 파일 외의 AI Hub 데이터를 추가할 수 있었지만 쓰지 않았다. 없는 클래스가 원인이라면 해상도나 앙상블 조정보다 이쪽의 기대 효과가 크다. 다만 효과는 검증하지 않았다.</p>
+<p><b>리더보드 비교 (11/05):</b> 상위 4팀 0.611~0.634, 기준 제출 0.589로 이 프로젝트의 주력보다 약 0.2 높다. Public은 테스트의 약 50%만 반영한다.</p>
+<p><b>놓친 개선 방향과 후속 실험:</b> 대회 안내상 금지 파일 외의 AI Hub 데이터를 추가할 수 있었지만 제출 전에는 검토하지 않았다. 제출 뒤 허용된 조합 라벨(금지 묶음 제외 7묶음)을 분석하니 약 116종이었고, 대회 56종 중 54종이 겹치며 62종은 새 약이었다.
+그중 1묶음(1,437장, 76클래스)을 더해 15 에포크만 시험 학습했더니 대회 fold 0의 mAP50-95가 0.835에서 0.937로 올랐다. 다만 fold 하나(47장)의 시험값이고 Kaggle 점수는 아직 없다. 전체 데이터 학습은 이 보고서 작성 시점에 진행 중이어서, 최종 제출과 위 표에는 반영되지 않았다.
+"테스트가 약 118종이고 격차의 대부분이 이 때문"이라는 설명은 아직 가설이다.</p>
 
 <!-- ================= 8. 결과 분석 ================= -->
 <h2 class="cont">8. 결과 분석</h2>
@@ -449,7 +452,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
   <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 오류 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
   <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
-  <tr><td><code>tests/</code></td><td>단위 테스트 함수 37개 (매개변수 포함 39개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 함수 40개 (매개변수 포함 42개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
 </table>
 <h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
 <ul>
@@ -571,7 +574,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R5</td><td>파일 구조·메타데이터 확인</td><td>파일명 ↔ 라벨 대조, 무결성 검사, 라벨 감사 A~E, 라벨 오류 15건 수정 (보고서 3장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R6</td><td>전처리</td><td>해상도 640/960/1280 (6.1절), CLAHE 5-Fold 전후 비교 (6.5절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R7</td><td>데이터 증강</td><td>상하 뒤집기·밝기·Copy-Paste 전후 비교 (6.1·6.4절)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 37개 (9장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 40개 (9장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R9</td><td>VGG·ResNet·YOLO 등 모델</td><td>YOLO11n·s·m·YOLO26s, VGG16·ResNet50·EfficientNet-B0 (6.1·6.3절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>
@@ -579,9 +582,9 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R13</td><td>추가 전처리·외부 데이터</td><td>금지 데이터 2종 미사용 확인. 허용된 추가 AI Hub 데이터와 테스트 의사 라벨은 쓰지 않았다</td><td class="n">부분</td></tr>
   <tr><td class="n">R14</td><td>기타 성능 개선 기법</td><td>WBF 직접 구현·근사 메타 검증, 5-Fold, TTA (6.6·6.7절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R15</td><td>분석 보고서</td><td>이 보고서</td><td class="n">완료</td></tr>
-  <tr><td class="n">R16</td><td>시연 영상</td><td>데모 앱 <code>app/demo.py</code>, 영상 <code>docs/demo/demo.mp4</code> (실행 화면 캡처 + 자막, 음성 없음)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R16</td><td>시연 영상</td><td>데모 앱 <code>app/demo.py</code>, 영상 <code>docs/demo/demo.mp4</code> (실행 화면 캡처 + 자막, 음성 없음). 업로드 기능은 앱에 있으나 영상에서는 테스트 이미지 선택만 보여 준다</td><td class="n">부분</td></tr>
   <tr><td class="n">R17</td><td>Kaggle 제출</td><td>후보 4종 제출 완료, 주력 public 0.41349 (7.2절)</td><td class="n">완료</td></tr>
-  <caption>표 B-1. 상태는 2026-10-30 기준.</caption>
+  <caption>표 B-1. 상태는 2026-11-05 기준.</caption>
 </table>
 
 <h2>참고문헌</h2>

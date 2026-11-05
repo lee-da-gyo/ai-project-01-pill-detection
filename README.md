@@ -446,7 +446,7 @@ ai-project-01-pill-detection/
 ├── app/
 │   └── demo.py                 # 🖥️ 데모 앱 (Streamlit): 사진 → 약 이름 · 위치 · 신뢰도 · 확인 필요 표시
 ├── tests/
-│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (함수 37개 · 케이스 39개)
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (함수 40개 · 케이스 42개)
 ├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
 │   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
 │   ├── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
@@ -529,7 +529,7 @@ streamlit run app/demo.py
 
 </details>
 
-> ⚠️ **데이터 사용 규칙** – AI Hub `경구약제조합 5000종`의 `TL_2_조합.zip`, `TS_2_조합.zip`은 대회 데이터의 원본이므로 사용하지 않는다. 원본 데이터는 레포에 포함하지 않는다.
+> ⚠️ **데이터 사용 규칙** – AI Hub `경구약제조합 5000종`의 `TL_2_조합.zip`, `TS_2_조합.zip`은 대회 안내상 금지 파일이므로 사용하지 않는다 (`scripts/prepare_aihub.py`는 이 이름을 열지 않고 건너뛴다). 그 밖의 허용 데이터로 하는 후속 실험의 산출물은 저장소에 넣지 않는다. 원본 데이터는 레포에 포함하지 않는다.
 
 <br>
 

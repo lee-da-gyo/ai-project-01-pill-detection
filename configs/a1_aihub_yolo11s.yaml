@@ -1,0 +1,12 @@
+# A1 – 허용된 AI Hub 조합 데이터를 더한 학습. 검증은 대회 fold 0 + 추가 데이터의 검증 조합.
+# 최종 모델의 에포크는 이 실험의 best epoch로 정한다 (학습 전에 고정한 규칙).
+name: a1_aihub_yolo11s
+description: YOLO11s, 640px, AI Hub 조합 90% + 대회 fold 0 제외, 검증은 대회 fold 0 + AI Hub 조합 10%
+model: yolo11s.pt
+data: data_aihub_fold0.yaml
+imgsz: 640
+epochs: 40
+patience: 12
+batch: 16
+optimizer: auto
+workers: 4
