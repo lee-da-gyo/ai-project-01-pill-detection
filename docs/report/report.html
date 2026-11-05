@@ -442,7 +442,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
   <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 오류 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
   <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
-  <tr><td><code>tests/</code></td><td>단위 테스트 함수 36개 (매개변수 포함 38개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 함수 37개 (매개변수 포함 39개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
 </table>
 <h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
 <ul>
@@ -479,7 +479,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">10/28 (수)</td><td>리뷰 반영(근사 메타 검증, 에포크 민감도, OOF 완전성·설정 스냅샷 검사), CLAHE 5-Fold 비교, 보고서 구성안</td><td><code>wbf_meta_validation.csv</code>, <code>compare_oof.py</code></td></tr>
   <tr><td class="n">10/29 (목)</td><td>보고서 초안과 리뷰 반영, 결과 분석(클래스별 AP · 실패 유형 · 처음 보는 약과 신뢰도), 실패 유형 1:1 매칭으로 재작성</td><td><code>error_analysis.py</code>, 보고서 초안</td></tr>
   <tr><td class="n">10/30 (금)</td><td>원본 라벨 오류 4장 발견·수정(감사 D·E) → 5-Fold·최종 모델 전체 재학습, CLAHE 재검증, 학습률(R11)·TTA(R14) 실험, 데모 앱, 보고서 완성</td><td><code>audit_labels.py</code>, <code>label_review.csv</code>, 데모 앱, 보고서</td></tr>
-  <tr><td class="n">11/02 주</td><td>Kaggle 제출 형식 확인·제출, GitHub 반영, 시연 영상 녹화(11/03), LMS 제출(11/04 19:00), 최종 업무일지·Kaggle(11/05)</td><td>Kaggle 점수, 시연 영상</td></tr>
+  <tr><td class="n">11/02 주</td><td>대회 지표 · 제출 형식 확인과 재평가, 시연 영상, GitHub 반영, 저장소 · 보고서(11/05 19:00), 업무일지 · Kaggle(11/06 23:50)</td><td>Kaggle 점수, 시연 영상</td></tr>
   <caption>표 10-1. 계획(<code>docs/PLAN.md</code>)과 비교하면 실험은 계획보다 이틀 앞섰고, 오류 분석에서 찾은 라벨 오류 때문에 10/30에 전체 재학습이 추가됐다.</caption>
 </table>
 
@@ -500,7 +500,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
 
 <h3>10.3 발표 참여</h3>
 <p>개인 사정으로 팀 프로젝트에서 개인 프로젝트로 전환되어 별도 발표 순서는 없다. 발표일에는 출석해 다른 팀 발표를 듣는다.
-대신 (1) 데모 앱 시연 영상(11/03 녹화, README에 링크), (2) 주강사와의 1:1 진행 공유를 발표 참여의 근거로 남긴다.</p>
+대신 (1) 데모 앱 시연 영상(<code>docs/demo/demo.mp4</code>, README에 링크), (2) 주강사와의 1:1 진행 공유를 발표 참여의 근거로 남긴다.</p>
 
 <!-- ================= 11. 비즈니스 ================= -->
 <h2>11. 비즈니스 시사점과 한계</h2>
@@ -558,13 +558,13 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
 <table>
   <tr><th class="n">#</th><th style="width:24%">요구사항</th><th>충족 근거</th><th class="n">상태</th></tr>
   <tr><td class="n">R1</td><td>요구사항 분석·타임라인</td><td><code>docs/PLAN.md</code> 추적표·일정 (10.1절)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R2</td><td>업무일지</td><td><code>docs/worklog/</code> 10/27~10/30, 다음 주 계속</td><td class="n">진행</td></tr>
+  <tr><td class="n">R2</td><td>업무일지</td><td><code>docs/worklog/</code> 10/27~11/05</td><td class="n">진행</td></tr>
   <tr><td class="n">R3</td><td>개발 환경·GitHub·구조</td><td>레포, <code>requirements.txt</code>, 모듈 구조 (9장). 최종 반영은 11/02 주</td><td class="n">완료</td></tr>
   <tr><td class="n">R4</td><td>EDA</td><td>발견 6개 → 결정 (2장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R5</td><td>파일 구조·메타데이터 확인</td><td>파일명 ↔ 라벨 대조, 무결성 검사, 라벨 감사 A~E, 라벨 오류 15건 수정 (보고서 3장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R6</td><td>전처리</td><td>해상도 640/960/1280 (6.1절), CLAHE 5-Fold 전후 비교 (6.5절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R7</td><td>데이터 증강</td><td>상하 뒤집기·밝기·Copy-Paste 전후 비교 (6.1·6.4절)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 36개 (9장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 37개 (9장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R9</td><td>VGG·ResNet·YOLO 등 모델</td><td>YOLO11n·s·m·YOLO26s, VGG16·ResNet50·EfficientNet-B0 (6.1·6.3절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>
@@ -572,8 +572,8 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R13</td><td>추가 전처리·외부 데이터</td><td>금지 데이터(AI Hub 원본) 미사용 확인. 테스트 의사 라벨은 하지 않았다</td><td class="n">부분</td></tr>
   <tr><td class="n">R14</td><td>기타 성능 개선 기법</td><td>WBF 직접 구현·근사 메타 검증, 5-Fold, TTA (6.6·6.7절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R15</td><td>분석 보고서</td><td>이 보고서</td><td class="n">완료</td></tr>
-  <tr><td class="n">R16</td><td>시연 영상</td><td>데모 앱 <code>app/demo.py</code> 완성, 영상 녹화 11/03</td><td class="n">진행</td></tr>
-  <tr><td class="n">R17</td><td>Kaggle 제출</td><td>제출 후보 3종 생성·형식 검사 완료, 제출 11/02 주</td><td class="n">진행</td></tr>
+  <tr><td class="n">R16</td><td>시연 영상</td><td>데모 앱 <code>app/demo.py</code>, 영상 <code>docs/demo/demo.mp4</code> (실행 화면 캡처 + 자막, 음성 없음)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R17</td><td>Kaggle 제출</td><td>제출 후보 4종 생성 · 안내 형식과 대조 완료, Kaggle 제출 대기</td><td class="n">진행</td></tr>
   <caption>표 B-1. 상태는 2026-10-30 기준.</caption>
 </table>
 

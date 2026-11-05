@@ -19,6 +19,28 @@ from .boxes import iou_matrix, to_xyxy
 EVAL_CONFIG = yaml.safe_load((Path(__file__).resolve().parents[2] / "configs" / "evaluation.yaml").read_text(encoding="utf-8"))
 METRIC_DEFINITION = (f"{EVAL_CONFIG['name']}: IoU {EVAL_CONFIG['iou_thresholds']}, maxDets {EVAL_CONFIG['max_dets']}, "
                      f"{EVAL_CONFIG['interpolation']}, {EVAL_CONFIG['averaging']}, 주최 측 평가와 동등성 {EVAL_CONFIG['equivalence']}")
+SUPPORTED_INTERPOLATION = "101-point"  # COCOeval이 계산하는 방식뿐이다. 설정만 바꿔 결과와 어긋나지 않게 막는다
+SUPPORTED_AVERAGING = "클래스 평균 (임계값 · 클래스별 AP의 평균)"
+
+
+def _check_eval_config() -> None:
+    if EVAL_CONFIG["interpolation"] != SUPPORTED_INTERPOLATION:
+        raise ValueError(f"지원하지 않는 보간 방식: {EVAL_CONFIG['interpolation']}")
+    if EVAL_CONFIG["averaging"] != SUPPORTED_AVERAGING:
+        raise ValueError(f"지원하지 않는 평균 방식: {EVAL_CONFIG['averaging']}")
+    if not isinstance(EVAL_CONFIG["max_dets"], int) or EVAL_CONFIG["max_dets"] < 10:
+        raise ValueError(f"max_dets는 10 이상의 정수여야 한다: {EVAL_CONFIG['max_dets']}")
+
+
+def _strict_iou_indices(iou_thrs: np.ndarray) -> list[int]:
+    """설정의 IoU 임계값이 COCOeval 격자에 있는 위치. 없는 값이 조용히 빠지지 않게 오류로 멈춘다."""
+    idx = []
+    for t in EVAL_CONFIG["iou_thresholds"]:
+        hit = np.where(np.isclose(iou_thrs, t))[0]
+        if not len(hit):
+            raise ValueError(f"IoU {t}는 COCOeval 임계값 {np.round(iou_thrs, 2).tolist()}에 없다")
+        idx.append(int(hit[0]))
+    return idx
 
 
 def _to_coco(gt: pd.DataFrame):
@@ -42,6 +64,7 @@ def _to_coco(gt: pd.DataFrame):
 
 def coco_map(pred: pd.DataFrame, gt: pd.DataFrame) -> dict:
     """정답(gt)에 있는 이미지에 대해서만 평가한다. 반환: mAP50_95, mAP50, mAP75, 클래스별 AP 표."""
+    _check_eval_config()
     coco_gt, img_id = _to_coco(gt)
     p = pred[pred["file_name"].isin(img_id)]
     if p.empty:
@@ -51,6 +74,7 @@ def coco_map(pred: pd.DataFrame, gt: pd.DataFrame) -> dict:
     with contextlib.redirect_stdout(io.StringIO()):
         coco_dt = coco_gt.loadRes(dets)
         ev = COCOeval(coco_gt, coco_dt, "bbox")
+        ev.params.maxDets = [1, 10, EVAL_CONFIG["max_dets"]]
         ev.evaluate()
         ev.accumulate()
         ev.summarize()
@@ -69,7 +93,7 @@ def coco_map(pred: pd.DataFrame, gt: pd.DataFrame) -> dict:
     per_iou = {round(float(t), 2): float(prec[i][prec[i] > -1].mean()) if (prec[i] > -1).any() else np.nan
                for i, t in enumerate(ev.params.iouThrs)}
     # 대회 표기 mAP@[0.75:0.95]의 내부 대리지표. 정의는 configs/evaluation.yaml
-    strict = prec[[i for i, t in enumerate(ev.params.iouThrs) if np.isclose(t, EVAL_CONFIG["iou_thresholds"]).any()]]
+    strict = prec[_strict_iou_indices(ev.params.iouThrs)]
     return {"mAP50_95": float(ev.stats[0]), "mAP50": float(ev.stats[1]), "mAP75": float(ev.stats[2]),
             "mAP75_95": float(strict[strict > -1].mean()) if (strict > -1).any() else float("nan"),
             "per_class": pd.DataFrame(rows), "per_iou": per_iou}

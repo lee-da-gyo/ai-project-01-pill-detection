@@ -33,8 +33,9 @@ sys.path.insert(0, str(REPO_DIR / "scripts"))
 from analyze_oof import load_oof, scores  # noqa: E402
 from pilldet.config import N_FOLDS, SEED, get_paths  # noqa: E402
 from pilldet.data import load_clean_annotations  # noqa: E402
+from pilldet.evaluate import METRIC_DEFINITION  # noqa: E402
 
-METRICS = ["learnable_mAP50_95", "learnable_mAP50", "oof_mAP50_95", "oof_mAP50"]
+METRICS = ["learnable_mAP75_95", "learnable_mAP50_95", "learnable_mAP50", "oof_mAP50_95", "oof_mAP50"]
 
 
 def resample(df: pd.DataFrame, picks: list[tuple[int, list[str]]]) -> pd.DataFrame:
@@ -91,7 +92,7 @@ def main():
                      "ci95_low": round(float(np.percentile(d, 2.5)), 4), "ci95_high": round(float(np.percentile(d, 97.5)), 4),
                      "p_improve": round(float((d > 0).mean()), 3)})
 
-    res = pd.DataFrame(rows)
+    res = pd.DataFrame(rows).assign(metric_definition=METRIC_DEFINITION)
     out = root / f"compare_{args.base}_vs_{args.exp}.csv"
     res.to_csv(out, index=False, encoding="utf-8-sig")
     print(res.to_string(index=False))

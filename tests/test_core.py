@@ -524,3 +524,28 @@ def test_coco_map_competition_metric_averages_strict_ious():
     m = coco_map(pred, gt)
     assert m["mAP75_95"] == pytest.approx(0.4)
     assert m["mAP50_95"] == pytest.approx(0.7)
+
+
+def test_eval_config_controls_metric_and_rejects_unsupported(monkeypatch):
+    """configs/evaluation.yaml을 바꾸면 결과가 달라지거나 멈춘다 – 기록된 정의와 실제 계산이 어긋나지 않게 한다."""
+    from pilldet import evaluate
+
+    gt = pd.DataFrame({"file_name": ["a.png"], "category_id": [1], "x": [0.0], "y": [0.0], "w": [100.0], "h": [100.0],
+                       "img_w": [200], "img_h": [200]})
+    pred = pd.DataFrame({"file_name": ["a.png"], "category_id": [1], "x": [0.0], "y": [0.0], "w": [100.0], "h": [80.0], "score": [0.9]})
+    for key, value, msg in [("iou_thresholds", [0.75, 0.77], "0.77"), ("interpolation", "11-point", "보간"),
+                            ("averaging", "이미지 평균", "평균"), ("max_dets", 5, "max_dets")]:
+        with monkeypatch.context() as m:
+            m.setitem(evaluate.EVAL_CONFIG, key, value)
+            with pytest.raises(ValueError, match=msg):
+                evaluate.coco_map(pred, gt)
+    with monkeypatch.context() as m:
+        m.setitem(evaluate.EVAL_CONFIG, "iou_thresholds", [0.75, 0.80])  # 둘 다 맞는 임계값만 평균
+        assert evaluate.coco_map(pred, gt)["mAP75_95"] == pytest.approx(1.0)
+    many = pd.DataFrame({"file_name": ["a.png"] * 11, "category_id": [1] * 11, "x": 150.0, "y": 150.0, "w": 10.0, "h": 10.0, "score": 0.9})
+    many = pd.concat([many, pred.assign(score=0.1)], ignore_index=True)  # 맞는 박스가 점수 12번째
+    assert evaluate.coco_map(many, gt)["mAP75_95"] > 0
+    with monkeypatch.context() as m:
+        m.setitem(evaluate.EVAL_CONFIG, "max_dets", 10)  # 상위 10개만 보면 맞는 박스가 잘린다
+        assert evaluate.coco_map(many, gt)["mAP75_95"] == 0
+
