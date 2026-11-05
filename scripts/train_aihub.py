@@ -34,7 +34,8 @@ def main():
     cfg = load_config(args.config)
     run_dir = REPO_DIR / "runs" / cfg["name"]
     if not args.skip_train:
-        run_dir = train(cfg, REPO_DIR / "datasets" / "aihub", REPO_DIR / "runs")
+        overrides = {"val": False} if "full" in cfg["data"] else {}  # 전체 학습은 검증 없이 last.pt를 쓴다
+        run_dir = train(cfg, REPO_DIR / "datasets" / "aihub", REPO_DIR / "runs", **overrides)
     if "full" in cfg["data"]:
         print("전체 데이터 학습은 검증 없이 끝낸다")
         return
