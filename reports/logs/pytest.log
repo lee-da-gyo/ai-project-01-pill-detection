@@ -44,4 +44,4 @@ tests/test_core.py::test_review_semantic_validation PASSED               [ 94%]
 tests/test_core.py::test_manifest_digest_tracks_names_boundaries_and_ignores_line_endings PASSED [ 97%]
 tests/test_core.py::test_coco_map_competition_metric_averages_strict_ious PASSED [100%]
 
-============================= 38 passed in 7.31s ==============================
+============================= 38 passed in 6.91s ==============================

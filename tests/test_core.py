@@ -517,7 +517,7 @@ def test_manifest_digest_tracks_names_boundaries_and_ignores_line_endings(tmp_pa
 
 
 def test_coco_map_competition_metric_averages_strict_ious():
-    """대회 지표 mAP@[0.75:0.95]: IoU 0.8 예측은 0.75 · 0.80만 맞으므로 5개 기준 평균이 0.4다 (mAP50-95는 0.7)."""
+    """대회 표기 기반 대리지표 mAP@[0.75:0.95]: IoU 0.8 예측은 0.75 · 0.80만 맞으므로 5개 기준 평균이 0.4다 (mAP50-95는 0.7)."""
     gt = pd.DataFrame({"file_name": ["a.png"], "category_id": [1], "x": [0.0], "y": [0.0], "w": [100.0], "h": [100.0],
                        "img_w": [200], "img_h": [200]})
     pred = pd.DataFrame({"file_name": ["a.png"], "category_id": [1], "x": [0.0], "y": [0.0], "w": [100.0], "h": [80.0], "score": [0.9]})

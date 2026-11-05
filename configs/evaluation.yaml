@@ -1,0 +1,8 @@
+# 대회 표기 mAP@[0.75:0.95]를 내부에서 계산하는 정의 (주최 측 평가 코드와의 동등성은 미확인)
+# 대회 페이지에는 표기만 있고 임계값 간격 · 보간 · maxDets · 평균 방식은 적혀 있지 않아 COCO 관례로 해석했다.
+name: mAP75_95
+iou_thresholds: [0.75, 0.80, 0.85, 0.90, 0.95]
+max_dets: 100          # COCOeval 기본값
+interpolation: 101-point   # COCOeval 기본값
+averaging: 클래스 평균 (임계값 · 클래스별 AP의 평균)
+equivalence: 미확인

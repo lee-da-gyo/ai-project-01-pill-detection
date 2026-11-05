@@ -1,11 +1,11 @@
 """최종 제출 파일 생성 - 여러 모델의 테스트 예측을 WBF로 합친다.
 
 사용법
-    python scripts/make_submission.py --runs final_yolo11s final_yolo11m --name final_ensemble
+    python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2 1 --iou-thr 0.6 --name final_11s_11m_wbf_iou06   # 현재 주력
     python scripts/make_submission.py --runs e0_baseline e0_baseline_f1 e0_baseline_f2 --name cv5_e0 --tta
 
     --runs : runs/<이름>/weights/ 아래 가중치를 쓴다. 전체 학습(검증 없음)은 last.pt, 그 밖에는 best.pt
-    --weights : 모델별 WBF 가중치 (생략하면 모두 1)
+    --weights : 모델별 WBF 가중치 (생략하면 모두 1, 즉 1:1이라 주력 구성과 다르다)
     --tta : Ultralytics TTA (좌우 뒤집기 + 크기 변환)
 
 산출물

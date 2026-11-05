@@ -31,7 +31,7 @@ sys.path.insert(0, str(REPO_DIR / "src"))
 from pilldet.config import N_FOLDS, get_paths  # noqa: E402
 from pilldet.data import load_clean_annotations  # noqa: E402
 from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
-from pilldet.evaluate import coco_map  # noqa: E402
+from pilldet.evaluate import METRIC_DEFINITION, coco_map  # noqa: E402
 
 
 def load_oof(exp: str, exp_root: Path, folds: pd.DataFrame) -> pd.DataFrame:
@@ -86,7 +86,7 @@ def main():
           f"→ OOF mAP 상한 {len(learnable) / len(n_folds_of):.3f}")
 
     preds = {e: load_oof(e, P.out / "experiments", folds) for e in exps}
-    res = pd.DataFrame([{"experiment": e, **scores(p, gt, learnable)} for e, p in preds.items()])
+    res = pd.DataFrame([{"experiment": e, **scores(p, gt, learnable)} for e, p in preds.items()]).assign(metric_definition=METRIC_DEFINITION)
     res.to_csv(P.out / "experiments" / "oof_analysis.csv", index=False)
     print(res.to_string(index=False))
 
@@ -99,7 +99,7 @@ def main():
                 fused = weighted_boxes_fusion(list(preds.values()), list(w), iou_thr=thr)
                 fused_of[cfg] = fused.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
                 rows.append({"iou_thr": thr, "weights": cfg[1], **scores(fused_of[cfg], gt, learnable)})
-        wbf = pd.DataFrame(rows).sort_values("learnable_mAP75_95", ascending=False)  # 대회 지표 기준
+        wbf = pd.DataFrame(rows).sort_values("learnable_mAP75_95", ascending=False).assign(metric_definition=METRIC_DEFINITION)  # 대리지표 기준
         wbf.to_csv(P.out / "experiments" / "wbf_oof.csv", index=False)
         print(f"\nWBF ({' : '.join(exps)}) - 같은 OOF에서 고른 최댓값이라 낙관적이다 (탐색용)\n" + wbf.to_string(index=False))
         meta_validate(fused_of, gt, folds, learnable, P.out / "experiments" / "wbf_meta_validation.csv")
@@ -137,7 +137,7 @@ def meta_validate(fused_of: dict, gt: pd.DataFrame, folds: pd.DataFrame, learnab
     picked.append({"held_out_fold": "합산(5 fold 보류 예측)", "iou_thr": None, "weights": None, "inner_learnable_mAP75_95": None,
                    "held_out_learnable_mAP75_95": s["learnable_mAP75_95"], "held_out_mAP75_95": s["oof_mAP75_95"],
                    "held_out_learnable_mAP50_95": s["learnable_mAP50_95"], "held_out_mAP50_95": s["oof_mAP50_95"]})
-    res = pd.DataFrame(picked)
+    res = pd.DataFrame(picked).assign(metric_definition=METRIC_DEFINITION)
     res.to_csv(out, index=False, encoding="utf-8-sig")
     print("\nWBF 근사 메타 검증 (fold별로 나머지 4 fold에서 설정 선택 → 보류 fold 평가. 완전 격리는 아님)\n" + res.to_string(index=False))
 
