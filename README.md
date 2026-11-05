@@ -79,7 +79,7 @@
 ### 🎯 0.950
 **최종 후보의 5-Fold OOF mAP@[0.75:0.95] (대회 표기 기반 내부 대리지표)**
 
-<sub>YOLO11s + YOLO11m WBF · 학습 가능 37종 조건부 진단값<br>(단일 모델 0.938) · Kaggle public 0.413 (주력)</sub>
+<sub>YOLO11s + YOLO11m WBF · 학습 가능 37종 조건부 진단값<br>(단일 모델 0.938) · Kaggle public 0.413 → 추가 데이터 학습 후 0.630 (보고서 7.2절)</sub>
 
 </td>
 </tr>

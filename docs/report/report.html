@@ -29,11 +29,12 @@
       <div><b>15건</b><span>라벨 오류 발견·수정 (14장)<br>(배경 분할 감사 10 + 오류 분석 뒤 감사 5)</span></div>
       <div><b>0건</b><span>같은 조합의 검증 누수<br>(조합 단위 5-Fold)</span></div>
       <div><b>0.950</b><span>최종 후보의 5-Fold OOF mAP@[.75:.95]<br>(대회 표기 기반 내부 대리지표, 37종 조건부 진단값, 단일 모델 0.938)</span></div>
-      <div><b>0.413</b><span>주력 제출의 Kaggle public 점수<br>(내부 대리지표보다 크게 낮다, 7.2절)</span></div>
+      <div><b>0.630</b><span>추가 데이터 학습 후 Kaggle public 점수<br>(YOLO11s 단일, 처음 제출 0.413에서 상승, 7.2절)</span></div>
     </div>
     <ul>
       <li><b>핵심 발견</b> – 오류는 위치가 아니라 <b>학습 때 본 적 없는 약의 이름</b>에서 나온다 (OOF에서 학습 가능 37종의 AP50-95 중앙값 0.992, 처음 보는 19종은 사실상 0).
         처음 보는 약의 24%는 신뢰도 0.9 이상으로 다른 약 이름을 받아, 신뢰도만으로는 걸러지지 않는다 (8.5절).</li>
+      <li><b>후속 결과</b> – 허용된 AI Hub 조합 데이터를 더해 약 118종을 학습하니 Kaggle public이 0.413에서 0.630으로 올랐다 (7.2절). 아래 후보와 8장 분석은 추가 데이터를 쓰기 전 모델 기준이다.</li>
       <li><b>현재 최종 후보</b> – YOLO11s + YOLO11m을 232장 전체로 학습하고 WBF(2:1, IoU 0.6)로 합친다. 설정은 5-Fold 예측을 대리지표로 평가해 골랐고, fold를 하나씩 보류하는 근사 메타 검증 5회에서 모두 2:1 가중치가 뽑혔다.</li>
       <li><b>기각한 시도</b> – 고해상도, YOLO26, Copy-Paste 합성, 2단계(검출+분류기), CLAHE 전처리, 학습률 변경, TTA. 각 시도의 기각 근거를 수치로 남겼다.</li>
       <li><b>한계</b> – 한 fold에만 있는 희귀 19종은 검증 때마다 학습에 없어, 이 데이터로는 그 약들의 실제 성능을 잴 수 없다.</li>
@@ -61,7 +62,7 @@
   <tr><td>과제 유형</td><td>객체 검출 (Object Detection): 알약마다 약 종류(클래스)와 바운딩 박스를 함께 예측</td></tr>
   <tr><td>입력</td><td>단색 배경 위에 알약 3~4개가 놓인 사진 (976 × 1280)</td></tr>
   <tr><td>데이터</td><td>학습 232장 (박스 771개, 56종) · 테스트 842장 (정답 비공개, Kaggle로 채점)</td></tr>
-  <tr><td>제약</td><td>AI Hub 경구약제 이미지 데이터<sup class="ref">[12]</sup> 중 <code>TL_2_조합.zip</code>과 그 원천 데이터 <code>TS_2_조합</code>만 사용 금지 (그 밖의 AI Hub 데이터는 허용, 이 프로젝트에서는 쓰지 않았다) · 테스트에 학습에 없는 클래스 존재 (대회 안내) · Kaggle 하루 10회 제출</td></tr>
+  <tr><td>제약</td><td>AI Hub 경구약제 이미지 데이터<sup class="ref">[12]</sup> 중 <code>TL_2_조합.zip</code>과 그 원천 데이터 <code>TS_2_조합</code>만 사용 금지 (그 밖의 AI Hub 데이터는 허용, 7.2절의 후속 실험에서 사용) · 테스트에 학습에 없는 클래스 존재 (대회 안내) · Kaggle 하루 10회 제출</td></tr>
 </table>
 
 <h3>1.3 평가 지표</h3>
@@ -320,6 +321,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td>final_11s_11m_wbf</td><td>YOLO11s + YOLO11m WBF (2:1, IoU 0.7)</td><td class="n">0.950</td><td class="n">0.41410</td></tr>
   <tr><td>final_yolo11s_single</td><td>YOLO11s 단일</td><td class="n">0.938</td><td class="n">0.40954</td></tr>
   <tr><td>final_yolo11m_single</td><td>YOLO11m 단일</td><td class="n">0.922</td><td class="n">0.39427</td></tr>
+  <tr class="best"><td>final_yolo11s_aihub</td><td>YOLO11s 단일 + 허용 AI Hub 조합 데이터 (후속 실험, 28 에포크)</td><td class="n">–</td><td class="n">0.63017</td></tr>
   <caption>표 7-2. 테스트 842장 모두 예측 있음. 점수 0.5 이상 박스가 이미지당 3.6~3.7개로 학습 데이터(3~4개)와 일치.</caption>
 </table>
 <p><b>순위는 맞았고, 절댓값은 크게 어긋났다.</b> 앙상블 &gt; 11s &gt; 11m 순서는 OOF와 같다. IoU 0.6과 0.7은 OOF(0.0007)와 public(0.0006) 모두 차이가 작고 방향은 반대라 구분되지 않는다. 미리 정한 대로 public 점수를 보고 주력을 바꾸지 않았다.</p>
@@ -331,8 +333,8 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
 </ul>
 <p><b>리더보드 비교 (11/05):</b> 상위 4팀 0.611~0.634, 기준 제출 0.589로 이 프로젝트의 주력보다 약 0.2 높다. Public은 테스트의 약 50%만 반영한다.</p>
 <p><b>놓친 개선 방향과 후속 실험:</b> 대회 안내상 금지 파일 외의 AI Hub 데이터를 추가할 수 있었지만 제출 전에는 검토하지 않았다. 제출 뒤 허용된 조합 라벨(금지 묶음 제외 7묶음)을 분석하니 약 116종이었고, 대회 56종 중 54종이 겹치며 62종은 새 약이었다.
-그중 1묶음(1,437장, 76클래스)을 더해 15 에포크만 시험 학습했더니 대회 fold 0의 mAP50-95가 0.835에서 0.937로 올랐다. fold 하나(47장)의 시험값이지만, Kaggle public도 같은 YOLO11s 단일 기준 0.40954에서 0.52212로 올랐다. 이 시험 제출은 후보가 아니며 위 표에 넣지 않았다. 전체 데이터 학습은 이 보고서 작성 시점에 진행 중이다.
-"테스트가 약 118종이고 격차의 대부분이 이 때문"이라는 설명은 아직 가설이다.</p>
+같은 YOLO11s 단일에서 1묶음(1,437장, 76클래스) 시험 학습은 Kaggle public 0.40954 → 0.52212, 7묶음 전체(10,175장, 118클래스)는 <b>0.63017</b>이었다. 검증(대회 fold 0 47장과 추가 데이터의 처음 보는 조합 1,024장)의 대리지표는 0.997과 0.977이고, 최종 에포크 28은 이 검증의 최고 지점으로 정했다. 추가 데이터만으로 학습해 대회 데이터로 평가하는 도메인 차이 측정은 하지 않았다. 테스트와 같은 사진으로 확정된 36장은 그 조합(66장)까지 학습에서 뺐다.
+클래스를 늘릴수록 점수가 오른 것은 없는 클래스가 주원인이라는 설명과 맞지만, 테스트 정답이 비공개라 "테스트가 약 118종"인지는 확인하지 못했다. 내부 값과 public의 차이도 여전히 크므로 대리지표를 Kaggle 추정치로 읽으면 안 된다.</p>
 
 <!-- ================= 8. 결과 분석 ================= -->
 <h2 class="cont">8. 결과 분석</h2>
@@ -489,7 +491,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">10/28 (수)</td><td>리뷰 반영(근사 메타 검증, 에포크 민감도, OOF 완전성·설정 스냅샷 검사), CLAHE 5-Fold 비교, 보고서 구성안</td><td><code>wbf_meta_validation.csv</code>, <code>compare_oof.py</code></td></tr>
   <tr><td class="n">10/29 (목)</td><td>보고서 초안과 리뷰 반영, 결과 분석(클래스별 AP · 실패 유형 · 처음 보는 약과 신뢰도), 실패 유형 1:1 매칭으로 재작성</td><td><code>error_analysis.py</code>, 보고서 초안</td></tr>
   <tr><td class="n">10/30 (금)</td><td>원본 라벨 오류 4장 발견·수정(감사 D·E) → 5-Fold·최종 모델 전체 재학습, CLAHE 재검증, 학습률(R11)·TTA(R14) 실험, 데모 앱, 보고서 완성</td><td><code>audit_labels.py</code>, <code>label_review.csv</code>, 데모 앱, 보고서</td></tr>
-  <tr><td class="n">11/02 주</td><td>대회 지표 · 제출 형식 확인과 재평가, 시연 영상, GitHub 반영, 저장소 · 보고서(11/05 19:00), 업무일지 · Kaggle(11/06 23:50)</td><td>Kaggle 점수 (주력 0.413), 시연 영상</td></tr>
+  <tr><td class="n">11/02 주</td><td>대회 지표 · 제출 형식 확인과 재평가, 시연 영상, GitHub 반영, 저장소 · 보고서(11/05 19:00), 업무일지 · Kaggle(11/06 23:50)</td><td>Kaggle 점수 (0.413 → 후속 0.630), 시연 영상</td></tr>
   <caption>표 10-1. 계획(<code>docs/PLAN.md</code>)과 비교하면 실험은 계획보다 이틀 앞섰고, 오류 분석에서 찾은 라벨 오류 때문에 10/30에 전체 재학습이 추가됐다.</caption>
 </table>
 
@@ -579,11 +581,11 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>
   <tr><td class="n">R12</td><td>인식 결과 시각화</td><td>정답 vs 예측, 실패 사례, 테스트 예측 (5.3·8장)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R13</td><td>추가 전처리·외부 데이터</td><td>금지 데이터 2종 미사용 확인. 허용된 추가 AI Hub 데이터와 테스트 의사 라벨은 쓰지 않았다</td><td class="n">부분</td></tr>
+  <tr><td class="n">R13</td><td>추가 전처리·외부 데이터</td><td>금지 데이터 2종 미사용 확인. 허용된 AI Hub 조합 데이터 사용 (7.2절). 테스트 의사 라벨은 하지 않았다</td><td class="n">부분</td></tr>
   <tr><td class="n">R14</td><td>기타 성능 개선 기법</td><td>WBF 직접 구현·근사 메타 검증, 5-Fold, TTA (6.6·6.7절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R15</td><td>분석 보고서</td><td>이 보고서</td><td class="n">완료</td></tr>
   <tr><td class="n">R16</td><td>시연 영상</td><td>데모 앱 <code>app/demo.py</code>, 영상 <code>docs/demo/demo.mp4</code> (실행 화면 캡처 + 자막, 음성 없음). 업로드 기능은 앱에 있으나 영상에서는 테스트 이미지 선택만 보여 준다</td><td class="n">부분</td></tr>
-  <tr><td class="n">R17</td><td>Kaggle 제출</td><td>후보 4종 제출 완료, 주력 public 0.41349 (7.2절)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R17</td><td>Kaggle 제출</td><td>처음 후보 4종 + 후속 시험 제출, 최고 public 0.63017 (7.2절)</td><td class="n">완료</td></tr>
   <caption>표 B-1. 상태는 2026-11-05 기준.</caption>
 </table>
 

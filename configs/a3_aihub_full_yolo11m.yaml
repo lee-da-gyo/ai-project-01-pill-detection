@@ -1,0 +1,12 @@
+# A3 – 제출용: 추가 데이터와 대회 데이터 전체로 학습 (검증 없음, last.pt 사용)
+# 에포크 = A1의 best epoch 28 (학습 전에 정한 규칙)
+name: a3_aihub_full_yolo11m
+description: YOLO11m, 640px, AI Hub 조합 + 대회 전체, 28 에포크
+model: yolo11m.pt
+data: data_aihub_full.yaml
+imgsz: 640
+epochs: 28
+patience: 0
+batch: 16
+optimizer: auto
+workers: 4
