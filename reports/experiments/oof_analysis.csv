@@ -1,3 +1,3 @@
-experiment,oof_mAP50_95,oof_mAP50,learnable_mAP50_95,learnable_mAP50
-e0_baseline,0.6344,0.6493,0.9561,0.9753
-e2_yolo11m,0.6217,0.6344,0.941,0.9602
+experiment,oof_mAP75_95,oof_mAP50_95,oof_mAP50,learnable_mAP75_95,learnable_mAP50_95,learnable_mAP50
+e0_baseline,0.62,0.6344,0.6493,0.9376,0.9561,0.9753
+e2_yolo11m,0.6095,0.6217,0.6344,0.9224,0.941,0.9602

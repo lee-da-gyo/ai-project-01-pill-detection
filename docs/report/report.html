@@ -28,13 +28,13 @@
     <div class="kpi">
       <div><b>15건</b><span>라벨 오류 발견·수정 (14장)<br>(배경 분할 감사 10 + 오류 분석 뒤 감사 5)</span></div>
       <div><b>0건</b><span>같은 조합의 검증 누수<br>(조합 단위 5-Fold)</span></div>
-      <div><b>0.964</b><span>현재 최종 후보의 5-Fold OOF mAP50-95<br>(37종 조건부 진단값, 단일 모델 0.956)</span></div>
+      <div><b>0.950</b><span>최종 후보의 5-Fold OOF mAP@[.75:.95]<br>(대회 지표, 37종 조건부 진단값, 단일 모델 0.938)</span></div>
       <div><b>[Kaggle]</b><span>최종 제출 public 점수<br>(제출 후 기입)</span></div>
     </div>
     <ul>
       <li><b>핵심 발견</b> – 오류는 위치가 아니라 <b>학습 때 본 적 없는 약의 이름</b>에서 나온다 (OOF에서 학습 가능 37종의 AP50-95 중앙값 0.992, 처음 보는 19종은 사실상 0).
-        처음 보는 약의 30%는 신뢰도 0.9 이상으로 다른 약 이름을 받아, 신뢰도만으로는 걸러지지 않는다 (8.5절).</li>
-      <li><b>현재 최종 후보</b> – YOLO11s + YOLO11m을 232장 전체로 학습하고 WBF(2:1, IoU 0.7)로 합친다. 설정은 5-Fold 예측으로 골랐고, fold를 하나씩 보류하는 근사 메타 검증 5회에서 모두 2:1 가중치가 뽑혔다.</li>
+        처음 보는 약의 24%는 신뢰도 0.9 이상으로 다른 약 이름을 받아, 신뢰도만으로는 걸러지지 않는다 (8.5절).</li>
+      <li><b>현재 최종 후보</b> – YOLO11s + YOLO11m을 232장 전체로 학습하고 WBF(2:1, IoU 0.6)로 합친다. 설정은 5-Fold 예측을 대회 지표로 평가해 골랐고, fold를 하나씩 보류하는 근사 메타 검증 5회에서 모두 2:1 가중치가 뽑혔다.</li>
       <li><b>기각한 시도</b> – 고해상도, YOLO26, Copy-Paste 합성, 2단계(검출+분류기), CLAHE 전처리, 학습률 변경, TTA. 각 시도의 기각 근거를 수치로 남겼다.</li>
       <li><b>한계</b> – 한 fold에만 있는 희귀 19종은 검증 때마다 학습에 없어, 이 데이터로는 그 약들의 실제 성능을 잴 수 없다.</li>
     </ul>
@@ -65,10 +65,11 @@
 </table>
 
 <h3>1.3 평가 지표</h3>
-<p>주 지표는 <b>mAP@[.5:.95]</b>(이하 mAP50-95)다. IoU 0.5부터 0.95까지 10개 기준에서 AP를 평균하므로, 약 이름을 맞혔는지와 함께 <b>박스를 얼마나 정확히 그렸는지</b>까지 평가한다.
+<p><b>대회 평가 지표는 mAP@[0.75:0.95]다.</b> 이 보고서는 IoU 0.75 ~ 0.95를 0.05 간격 5개 기준의 평균으로 계산한다(대회 페이지에 간격은 적혀 있지 않아 COCO 관례를 따랐다). 약 이름과 함께 <b>박스를 얼마나 정확히 그렸는지</b>를 더 엄격하게 본다.
+실험 대부분은 대회 지표를 확인하기 전에 COCO 표준 <b>mAP@[.5:.95]</b>(이하 mAP50-95)로 비교했으므로, 이 보고서의 실험 표는 mAP50-95를 쓴다. 대회 페이지를 프로젝트 후반에야 확인한 것은 실수다. 확인한 뒤 학습 없이 저장된 예측으로 최종 결정들을 대회 지표로 다시 평가했고, 그 결과 WBF의 IoU 하나가 바뀌었다(6.6절).
 검증에는 pycocotools<sup class="ref">[3]</sup>로 직접 계산한 COCO mAP<sup class="ref">[2]</sup>를 쓴다. 베이스라인에서 Ultralytics 내장 평가(0.834)와 직접 구현(0.835)이 일치함을 확인했고,
 덕분에 앙상블·2단계 모델처럼 Ultralytics 밖에서 만든 예측도 같은 기준으로 비교할 수 있었다.</p>
-<div class="todo">Kaggle 대회 페이지의 평가 지표와 제출 형식 확인 결과를 여기에 기입한다 (제출 형식 확인 후).</div>
+<p>제출 파일은 대회 안내의 8개 열(annotation_id, image_id, category_id, bbox_x, bbox_y, bbox_w, bbox_h, score)과 일치함을 확인했다.</p>
 
 <!-- ================= 2. EDA ================= -->
 <h2>2. 데이터 분석 (EDA)</h2>
@@ -247,26 +248,26 @@ fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 �
   <caption>표 6-4. 수정 라벨로 두 실험을 모두 다시 학습한 값 (라벨 수정 전에도 2개↑ 3개↓, 37종 OOF +0.011, 구간 −0.006 ~ +0.027로 같은 결론). 출처: reports/experiments/preprocess_clahe_stats.csv, compare_e0_baseline_vs_e4_clahe.csv</caption>
 </table>
 <p><b>결정: 미채택.</b> fold 단위로는 방향이 엇갈리고(처음 보는 약이 가장 많은 fold 3에서 −0.015), 합친 OOF의 개선도 구간이 0을 포함한다.
-라벨을 고쳐 다시 학습해도 결론이 같았다. 밝기 차이는 학습 중 HSV 증강이 이미 다루고 있어 전처리로 얻을 몫이 작았던 것으로 본다.</p>
+라벨을 고쳐 다시 학습해도 결론이 같았고, 대회 지표로 다시 봐도 같았다 (37종 OOF +0.006, 구간 −0.005 ~ +0.020, 2개 fold 상승 · 3개 하락). 밝기 차이는 학습 중 HSV 증강이 이미 다루고 있어 전처리로 얻을 몫이 작았던 것으로 본다.</p>
 
 <h3>6.6 5-Fold 최종 후보 비교와 앙상블</h3>
 <table>
   <tr><th>모델</th><th class="n">fold별 mAP50-95 (0 / 1 / 2 / 3 / 4)</th><th class="n">fold 평균 ± 표준편차</th><th class="n">OOF 56종</th><th class="n">OOF 37종 (조건부)</th></tr>
   <tr><td>YOLO11s</td><td class="n">0.836 / 0.900 / 0.936 / 0.763 / 0.879</td><td class="n">0.863 ± 0.067</td><td class="n">0.634</td><td class="n">0.956</td></tr>
   <tr><td>YOLO11m</td><td class="n">0.837 / 0.900 / 0.924 / 0.732 / 0.884</td><td class="n">0.855 ± 0.076</td><td class="n">0.622</td><td class="n">0.941</td></tr>
-  <tr class="best"><td>WBF 11s + 11m (2:1, IoU 0.7)</td><td class="n">–</td><td class="n">–</td><td class="n">0.639</td><td class="n">0.964</td></tr>
+  <tr class="best"><td>WBF 11s + 11m (2:1, IoU 0.6)</td><td class="n">–</td><td class="n">–</td><td class="n">0.638</td><td class="n">0.964</td></tr>
   <caption>표 6-5. 수정 라벨 기준. 출처: reports/cv_summary.csv, reports/experiments/oof_analysis.csv, wbf_oof.csv</caption>
 </table>
 <ul>
   <li><b>단일 모델로는 YOLO11s가 낫다</b>: fold 평균(+0.007)과 37종 OOF(+0.015) 모두 11s가 높고, 학습도 약 1.5배 빠르다. 라벨 수정 전에는 두 지표의 방향이 엇갈렸다.</li>
-  <li><b>두 모델의 WBF<sup class="ref">[4]</sup>는 단일 최고보다 높다</b>: 37종 OOF 0.956 → 0.964 (+0.008). 8.2절에서 IoU별로 나누면 IoU 0.95 한 곳의 +0.038이 10개 임계값 평균에 +0.038 / 10 ≈ +0.004를 더해, 차이의 약 절반이 이 구간에서 관찰된다.
+  <li><b>두 모델의 WBF<sup class="ref">[4]</sup>는 단일 최고보다 높다</b>: 37종 OOF 0.956 → 0.964 (+0.008, 대회 지표로는 0.938 → 0.950, +0.012). 8.2절에서 IoU별로 나누면 IoU 0.95 한 곳의 +0.040이 10개 임계값 평균에 +0.040 / 10 = +0.004를 더해, 차이의 약 절반이 이 구간에서 관찰된다.
     박스 좌표 평균이 위치를 다듬는다는 가설과 맞지만, 고정 신뢰도에서 센 실패 유형은 mAP의 가법 분해가 아니므로 원인으로 단정하지 않는다.</li>
 </ul>
 <div class="box">
   <p><b>설정 선택 편향 점검 (근사 메타 검증)</b> – WBF의 IoU 임계값과 모델 가중치 12개 조합 중 최댓값을 같은 OOF에서 고르면 낙관적이다.
-  그래서 fold 하나를 보류하고 나머지 4개 fold로 설정을 고른 뒤 보류 fold에만 적용하는 과정을 5번 반복했다. <b>가중치는 5번 모두 2:1</b>, IoU는 0.7이 3번 · 0.6이 2번 뽑혔고
-  보류 예측 합산 0.963은 독립된 성능 추정치가 아니라 설정 안정성을 점검한 값이다. 전체 OOF에서 2:1의 IoU 0.6과 0.7은 37종 조건부 mAP가 소수 넷째 자리까지 같아(0.9636) 사실상 동률이다.
-  동률은 보류 선택에서 더 자주 뽑힌 쪽(0.7이 3/5)으로 정했고, 56종 OOF도 0.7이 근소하게 높다(0.6391 vs 0.6384). 최종 설정은 2:1, IoU 0.7이다.</p>
+  그래서 fold 하나를 보류하고 나머지 4개 fold로 설정을 고른 뒤 보류 fold에만 적용하는 과정을 5번 반복했다. <b>가중치는 5번 모두 2:1</b>이었다. 처음에는 mAP50-95로 평가해 IoU 0.7(3회)을 택했는데, 이때 전체 OOF의 0.6과 0.7은 0.9636으로 동률이었다.
+  대회 지표로 같은 절차를 다시 돌리자 <b>IoU는 0.6이 3번 · 0.7이 2번</b> 뽑혔고 전체 OOF도 0.6이 근소하게 높아(0.9502 vs 0.9495), 최종 설정을 <b>2:1, IoU 0.6</b>으로 바꿨다. 차이가 작아 "0.6이 더 좋다"는 근거가 아니라 규칙을 따른 선택이다.
+  보류 예측 합산(대회 지표 0.949)은 독립된 성능 추정치가 아니라 설정 안정성을 점검한 값이다.</p>
   <p>라벨 수정 전에는 같은 절차가 1:1을 골랐다. 절차를 고정하고 결과를 따랐으며, 1:1과 2:1의 차이(0.002)는 결론을 바꿀 크기가 아니다.</p>
   <p>다만 설정을 고를 때 쓴 다른 fold의 모델은 보류 fold를 학습에 포함했으므로 완전히 격리된 추정은 아니다. 엄밀한 nested CV는 보류 fold를 뺀 4개 fold 안에서 모델을 다시 학습해야 해,
   저장된 예측만으로는 할 수 없다. 그래서 이 결과는 "설정 선택이 안정적인가"의 근거로만 쓴다.</p>
@@ -314,17 +315,18 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
 
 <h3>7.2 제출 후보와 결과</h3>
 <table>
-  <tr><th>제출 파일</th><th>구성</th><th class="n">근거 (37종 조건부 OOF)</th><th class="n">Kaggle public</th></tr>
-  <tr class="best"><td>final_11s_11m_wbf</td><td>YOLO11s + YOLO11m WBF (2:1, IoU 0.7)</td><td class="n">0.964</td><td class="n">[기입]</td></tr>
-  <tr><td>final_yolo11s_single</td><td>YOLO11s 단일</td><td class="n">0.956</td><td class="n">[기입]</td></tr>
-  <tr><td>final_yolo11m_single</td><td>YOLO11m 단일</td><td class="n">0.941</td><td class="n">[기입]</td></tr>
+  <tr><th>제출 파일</th><th>구성</th><th class="n">37종 조건부 OOF (대회 지표)</th><th class="n">Kaggle public</th></tr>
+  <tr class="best"><td>final_11s_11m_wbf_iou06</td><td>YOLO11s + YOLO11m WBF (2:1, IoU 0.6)</td><td class="n">0.950</td><td class="n">[기입]</td></tr>
+  <tr><td>final_11s_11m_wbf</td><td>YOLO11s + YOLO11m WBF (2:1, IoU 0.7)</td><td class="n">0.950</td><td class="n">[기입]</td></tr>
+  <tr><td>final_yolo11s_single</td><td>YOLO11s 단일</td><td class="n">0.938</td><td class="n">[기입]</td></tr>
+  <tr><td>final_yolo11m_single</td><td>YOLO11m 단일</td><td class="n">0.922</td><td class="n">[기입]</td></tr>
   <caption>표 7-2. 테스트 842장 모두 예측 있음. 점수 0.5 이상 박스가 이미지당 3.6~3.7개로 학습 데이터(3~4개)와 일치.</caption>
 </table>
 <div class="todo">Kaggle 점수를 기입하고, OOF 순위와 Kaggle 순위가 일치하는지 해석을 추가한다.</div>
 
 <!-- ================= 8. 결과 분석 ================= -->
 <h2 class="cont">8. 결과 분석</h2>
-<p>현재 최종 후보와 같은 구성(YOLO11s + YOLO11m, WBF 2:1, IoU 0.7)의 5-Fold OOF 예측 232장을 다시 나눠 보았다. 새로 학습한 것은 없다.
+<p>현재 최종 후보와 같은 구성(YOLO11s + YOLO11m, WBF 2:1, IoU 0.6)의 5-Fold OOF 예측 232장을 다시 나눠 보았다. 새로 학습한 것은 없다.
 목적은 mAP 한 숫자 뒤에서 <b>어디서 점수를 잃는지</b> 찾는 것이다. 출처: <code>scripts/error_analysis.py</code>, <code>reports/experiments/error_*.csv</code>.</p>
 <div class="box warn"><p><b>이 분석이 데이터를 고쳤다</b> – 처음 이 장을 썼을 때는 "학습한 약끼리도 신뢰도 0.96~0.98로 틀린다"는 결론이 있었다.
 그 사례를 원본과 대조하자 4장 모두 모델이 맞고 라벨이 틀렸다 (보고서 3장 "데이터 정제"의 감사 D·E: D 3장 + E 1장). 라벨을 고쳐 전체를 다시 학습했고, 그 결론은 <b>철회</b>했다.
@@ -333,32 +335,32 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
 <h3>8.1 클래스별 AP</h3>
 <figure><img src="../../reports/figures/20_per_class_ap.png" style="width:82%">
 <figcaption>그림 8-1. 학습 가능 37종 중 AP50-95 하위 10종. 56종 전체 값은 부록 A.</figcaption></figure>
-<p>37종의 AP50-95 중앙값은 <b>0.992</b>이고, 28종은 AP50이 1.0이다. 0.9 미만은 4종뿐이다. 처음 보는 19종은 검증될 때 학습에 없어 18종이 0이다. 동아가바펜틴정만 0.135인데, 학습하지 않은 클래스 출력이 낸 신뢰도 0.003 미만의 예측 몇 개가 우연히 그 알약 위에 놓인 결과다 (누수 아님, 같은 fold에 이 약의 학습 박스 없음).</p>
+<p>37종의 AP50-95 중앙값은 <b>0.992</b>이고, 28종은 AP50이 1.0이다. 0.9 미만은 4종뿐이다. 처음 보는 19종은 검증될 때 학습에 없어 18종이 0이다. 동아가바펜틴정만 0.100인데, 학습하지 않은 클래스 출력이 낸 신뢰도 0.003 미만의 예측 몇 개가 우연히 그 알약 위에 놓인 결과다 (누수 아님, 같은 fold에 이 약의 학습 박스 없음).</p>
 <table>
   <tr><th>AP 하위 (37종 안)</th><th class="n">AP50-95</th><th class="n">AP50</th><th class="n">정답 박스</th><th class="n">검증 때 학습 박스 (평균)</th></tr>
-  <tr><td>트라젠타듀오정 2.5/850mg</td><td class="n">0.663</td><td class="n">0.663</td><td class="n">9</td><td class="n">4.0</td></tr>
-  <tr><td>보령부스파정 5mg</td><td class="n">0.749</td><td class="n">0.773</td><td class="n">15</td><td class="n">8.4</td></tr>
-  <tr><td>에어탈정(아세클로페낙)</td><td class="n">0.867</td><td class="n">1.000</td><td class="n">6</td><td class="n">3.0</td></tr>
+  <tr><td>트라젠타듀오정 2.5/850mg</td><td class="n">0.636</td><td class="n">0.636</td><td class="n">9</td><td class="n">4.0</td></tr>
+  <tr><td>보령부스파정 5mg</td><td class="n">0.751</td><td class="n">0.775</td><td class="n">15</td><td class="n">8.4</td></tr>
+  <tr><td>에어탈정(아세클로페낙)</td><td class="n">0.883</td><td class="n">1.000</td><td class="n">6</td><td class="n">3.0</td></tr>
   <tr><td>아토르바정 10mg</td><td class="n">0.884</td><td class="n">0.901</td><td class="n">22</td><td class="n">16.9</td></tr>
-  <tr><td>콜리네이트연질캡슐 400mg</td><td class="n">0.923</td><td class="n">1.000</td><td class="n">17</td><td class="n">13.3</td></tr>
+  <tr><td>콜리네이트연질캡슐 400mg</td><td class="n">0.920</td><td class="n">1.000</td><td class="n">17</td><td class="n">13.3</td></tr>
   <caption>표 8-1. "검증 때 학습 박스"는 그 박스가 검증될 때 나머지 fold에 있던 같은 약의 박스 수. 출처: error_per_class.csv</caption>
 </table>
-<p>학습 박스 수와 AP 사이에는 <b>단조 관계가 관찰되지 않았다</b> (Spearman ρ = −0.05, n = 37, 탐색적). 22박스나 있는 아토르바정도 하위권이다.
+<p>학습 박스 수와 AP 사이에는 <b>단조 관계가 관찰되지 않았다</b> (Spearman ρ = −0.06, n = 37, 탐색적). 22박스나 있는 아토르바정도 하위권이다.
 하위 약의 손실은 비슷하게 생긴 다른 약과의 혼동, 그리고 다른 약의 오탐에서 나왔다. 보령부스파정은 자기 박스 15개 중 11개를 맞혔지만,
 <b>처음 보는 약 5박스</b>(아빌리파이정 3, 졸로푸트정 2)가 보령부스파정으로 예측되어 이 클래스의 오탐이 되었다. 처음 보는 약이 학습한 약의 AP까지 깎는 경로다.</p>
 
 <h3>8.2 위치 정밀도: IoU 임계값별 mAP</h3>
 <table>
-  <tr><th>37종 mAP</th><th class="n">IoU 0.50</th><th class="n">0.75</th><th class="n">0.90</th><th class="n">0.95</th><th class="n">50-95 평균</th></tr>
-  <tr><td>YOLO11s</td><td class="n">0.975</td><td class="n">0.972</td><td class="n">0.947</td><td class="n">0.832</td><td class="n">0.956</td></tr>
-  <tr><td>YOLO11m</td><td class="n">0.960</td><td class="n">0.957</td><td class="n">0.944</td><td class="n">0.806</td><td class="n">0.941</td></tr>
-  <tr class="best"><td>WBF 11s + 11m (2:1)</td><td class="n">0.978</td><td class="n">0.975</td><td class="n">0.962</td><td class="n">0.870</td><td class="n">0.964</td></tr>
+  <tr><th>37종 mAP</th><th class="n">IoU 0.50</th><th class="n">0.75</th><th class="n">0.90</th><th class="n">0.95</th><th class="n">50-95 평균</th><th class="n">75-95 평균 (대회 지표)</th></tr>
+  <tr><td>YOLO11s</td><td class="n">0.975</td><td class="n">0.972</td><td class="n">0.947</td><td class="n">0.832</td><td class="n">0.956</td><td class="n">0.938</td></tr>
+  <tr><td>YOLO11m</td><td class="n">0.960</td><td class="n">0.957</td><td class="n">0.944</td><td class="n">0.806</td><td class="n">0.941</td><td class="n">0.922</td></tr>
+  <tr class="best"><td>WBF 11s + 11m (2:1, IoU 0.6)</td><td class="n">0.978</td><td class="n">0.975</td><td class="n">0.963</td><td class="n">0.872</td><td class="n">0.964</td><td class="n">0.950</td></tr>
   <caption>표 8-2. 출처: error_per_iou.csv</caption>
 </table>
 <ul>
   <li><b>맞힌 박스의 위치는 정확하다.</b> 신뢰도 0.25 이상에서 같은 약으로 맞힌 692박스의 조건부 IoU 중앙값은 0.974이고, 0.9 미만은 0.7%다.
     다만 이것은 맞힌 박스만의 값이고, mAP는 IoU 0.95에서 0.87로 내려간다. 가장 엄격한 기준에서는 위치 손실이 남아 있다.</li>
-  <li><b>앙상블 이득은 IoU 0.95에서 가장 크다.</b> 11s 대비 +0.008 중 IoU 0.95 한 곳의 +0.038이 10개 임계값 평균에 +0.038 / 10 ≈ +0.004를 기여해, 차이의 약 절반이 이 구간에서 관찰된다.
+  <li><b>앙상블 이득은 IoU 0.95에서 가장 크다.</b> 11s 대비 +0.008 중 IoU 0.95 한 곳의 +0.040이 10개 임계값 평균에 +0.040 / 10 = +0.004를 기여해, 차이의 약 절반이 이 구간에서 관찰된다. 엄격한 구간만 평균하는 대회 지표에서 앙상블 이득이 더 큰(+0.012) 이유도 여기에 있다.
     6.6절의 "박스 좌표 평균이 위치를 다듬는다"는 가설을 지지하는 패턴이지만, IoU별 차이는 원인별 가법 분해가 아니므로 원인으로 단정하지 않는다.</li>
 </ul>
 
@@ -373,7 +375,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><th>정답 박스 (신뢰도 ≥ 0.25)</th><th class="n">정답</th><th class="n">위치 오류</th><th class="n">분류 오류</th><th class="n">놓침</th></tr>
   <tr><td>학습 가능 37종 (708개)</td><td class="n">692 (97.7%)</td><td class="n">0</td><td class="n">12 (1.7%)</td><td class="n">4 (0.6%)</td></tr>
   <tr><td>처음 보는 19종 (63개)</td><td class="n">0</td><td class="n">0</td><td class="n">61 (96.8%)</td><td class="n">2 (3.2%)</td></tr>
-  <tr><td>37종, 신뢰도 ≥ 0.5</td><td class="n">683</td><td class="n">0</td><td class="n">8</td><td class="n">17</td></tr>
+  <tr><td>37종, 신뢰도 ≥ 0.5</td><td class="n">681</td><td class="n">0</td><td class="n">8</td><td class="n">19</td></tr>
   <caption>표 8-3. 출처: error_types.csv. 예측 박스 기준으로는 배경 오탐 0개, 같은 약 중복 예측 2개.</caption>
 </table>
 <ul>
@@ -408,21 +410,22 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
 <h3>8.5 신뢰도로 처음 보는 약을 가를 수 있는가</h3>
 <table>
   <tr><th>정답 박스에 겹친 최고 신뢰도</th><th class="n">학습 가능 37종 (708)</th><th class="n">처음 보는 19종 (63)</th></tr>
-  <tr><td>중앙값</td><td class="n">0.966</td><td class="n">0.651</td></tr>
-  <tr><td>0.9 이상 비율</td><td class="n">91.1%</td><td class="n"><b>30.2%</b></td></tr>
-  <tr><td>0.5 미만 비율</td><td class="n">2.4%</td><td class="n">20.6%</td></tr>
+  <tr><td>중앙값</td><td class="n">0.966</td><td class="n">0.622</td></tr>
+  <tr><td>0.9 이상 비율</td><td class="n">88.4%</td><td class="n"><b>23.8%</b></td></tr>
+  <tr><td>0.5 미만 비율</td><td class="n">2.7%</td><td class="n">23.8%</td></tr>
   <tr><td>두 번째 이름도 0.25 이상인 비율</td><td class="n">1.1%</td><td class="n">23.8%</td></tr>
-  <tr><td>AUROC (신뢰도가 낮을수록 처음 보는 약)</td><td class="n" colspan="2">0.842 (95% 구간 0.729 ~ 0.946, 조합 단위 부트스트랩 1000회)</td></tr>
+  <tr><td>AUROC (신뢰도가 낮을수록 처음 보는 약)</td><td class="n" colspan="2">0.884 (95% 구간 0.794 ~ 0.955, 조합 단위 부트스트랩 1000회)</td></tr>
   <caption>표 8-5. 출처: error_unknown_summary.csv. 같은 조합의 사진은 서로 독립이 아니어서 조합 단위로 다시 뽑았다.</caption>
 </table>
-<p>신뢰도는 처음 보는 약에서 낮은 편이지만(AUROC 0.842), <b>처음 보는 약의 30%는 신뢰도 0.9 이상으로 다른 약이라고 답했다.</b>
-동일 OOF 표본에서 처음 보는 약의 90%를 거르는 탐색적 operating point를 잡으면 학습한 약 박스의 55%도 함께 거부된다 (그 점의 신뢰도 0.967. 같은 데이터로 고른 값이라 낙관적이며 운영값이 아니다).
+<p>신뢰도는 처음 보는 약에서 낮은 편이지만(AUROC 0.884), <b>처음 보는 약의 24%는 신뢰도 0.9 이상으로 다른 약이라고 답했다.</b>
+동일 OOF 표본에서 처음 보는 약의 90%를 거르는 탐색적 operating point를 잡으면 학습한 약 박스의 28%도 함께 거부된다 (그 점의 신뢰도 0.954. 같은 데이터로 고른 값이라 낙관적이며 운영값이 아니다).
+이 수치는 WBF 설정에 민감하다. IoU 0.7에서는 같은 값이 30%, AUROC 0.842, 거부 55%였다. mAP가 거의 같은 두 설정에서 이만큼 달라지므로 표본 63박스의 불안정성을 고려해 방향만 읽어야 한다.
 11장의 "신뢰도 임계값만으로는 부족하다"는 판단의 정량 근거다. 처음 보는 약이 63박스뿐이고 촬영 환경이 하나여서, 이 표로 운영 임계값을 정하지는 않는다.</p>
 
 <h3>8.6 테스트 예측 예시</h3>
 <figure><img src="../../reports/figures/23_test_predictions.png" style="width:72%">
 <figcaption>그림 8-4. 현재 최종 후보의 테스트 예측 (고정 시드 0으로 6장 무작위 선택, 신뢰도 0.25 이상). 노란 점선은 같은 알약에 붙은 두 번째 이름이다. 테스트는 정답이 없어 정확도를 판단하지 않는다.</figcaption></figure>
-<p>신뢰도 0.25 이상 박스를 IoU ≥ 0.5로 묶은 "한 알약"에 이름이 두 개 이상 붙은 비율은 OOF 3.0%(765묶음 중 23), 테스트 3.8%(3,124묶음 중 118)였다.
+<p>신뢰도 0.25 이상 박스를 IoU ≥ 0.5로 묶은 "한 알약"에 이름이 두 개 이상 붙은 비율은 OOF 3.0%(765묶음 중 23), 테스트 3.7%(3,124묶음 중 117)였다.
 정답이 없어 테스트가 더 어렵다는 증거로 해석하지 않는다. 다만 정답 없이 계산할 수 있으므로, 서비스에서 "사용자 확인 필요" 사례의 빈도를 지켜보는 <b>모니터링 후보 지표</b>로 쓸 수 있다.</p>
 
 <div class="box">
@@ -439,7 +442,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
   <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 오류 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
   <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
-  <tr><td><code>tests/</code></td><td>단위 테스트 함수 35개 (매개변수 포함 37개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 함수 36개 (매개변수 포함 38개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
 </table>
 <h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
 <ul>
@@ -461,7 +464,7 @@ python scripts/run_experiment.py --config configs/e0_baseline.yaml [--fold k]
 python scripts/summarize_cv.py e0_baseline e2_yolo11m
 python scripts/analyze_oof.py e0_baseline e2_yolo11m
 python scripts/run_experiment.py --config configs/final_yolo11s.yaml   # final_yolo11m도 같은 방식
-python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2 1 --iou-thr 0.7 --name final_11s_11m_wbf</pre>
+python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2 1 --iou-thr 0.6 --name final_11s_11m_wbf_iou06</pre>
 <p class="src">GPU 학습은 cuDNN 비결정성 때문에 같은 시드에서도 가중치가 비트 단위로 같지 않을 수 있다. 재현 기준은 5-Fold 점수가 소수 셋째 자리 수준에서 같은 것이다.</p>
 <p><b>실행 환경 혼재 가능성</b>: 설치된 pandas · Pillow가 10/30 09:34경(설치 폴더 시각) 3.0.3 · 12.3.0에서 2.3.3 · 11.3.0으로 바뀐 것으로 보이며, 원인은 확인하지 못했다. 산출물 시각 기준으로 e0_baseline fold 0(09:28 완료)과 라벨 수정 전 탐색은 이전 버전, fold 1(09:37 완료)은 교체 시점에 걸쳐 있고, 나머지 5-Fold · 최종 모델 · 제출 · 테스트는 이후 버전이다. fold별 환경을 기록하지 않아 시각으로 추정한 것이다. 두 라이브러리의 차이가 점수에 영향을 줬는지는 재실행으로 검증하지 않았다. <code>requirements.txt</code>는 최종 모델을 만든 환경의 버전이다. 새 가상환경(같은 PC, Python 3.14.6, CPU용 PyTorch)에 <code>requirements.txt</code>를 설치해 의존성 검사와 단위 테스트 37개, 라벨 감사 재현을 확인했다. 다른 PC와 GPU 학습 재현은 확인하지 않았다.</p>
 
@@ -503,10 +506,10 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
 <h2>11. 비즈니스 시사점과 한계</h2>
 <h3>11.1 서비스에 주는 시사점</h3>
 <ul>
-  <li><b>여러 조합에서 반복 관측된 약은 높은 진단값을 보였다.</b> 37종 조건부 OOF 0.964는 37종 전체를 합친 값이며, 모든 약의 정확도를 보장하지 않는다 (하위 약 AP 0.66, 8.1절).
+  <li><b>여러 조합에서 반복 관측된 약은 높은 진단값을 보였다.</b> 37종 조건부 OOF 0.950(대회 지표)은 37종 전체를 합친 값이며, 모든 약의 정확도를 보장하지 않는다 (하위 약 AP50-95 0.64, 8.1절).
     서비스 범위를 정하려면 약별 AP와 실패 사례(8장)를 함께 봐야 한다.</li>
-  <li><b>처음 보는 약을 다른 약으로 확신하는 것이 가장 큰 위험이다.</b> 현재 최종 후보와 같은 구성의 OOF에서 처음 보는 약 63박스의 30%가 신뢰도 0.9 이상으로 다른 약 이름을 받았다
-    (8.5절, 신뢰도로 가르는 AUROC 0.84, 같은 촬영 환경의 OOF 기준).
+  <li><b>처음 보는 약을 다른 약으로 확신하는 것이 가장 큰 위험이다.</b> 현재 최종 후보와 같은 구성의 OOF에서 처음 보는 약 63박스의 24%가 신뢰도 0.9 이상으로 다른 약 이름을 받았다
+    (8.5절, 신뢰도로 가르는 AUROC 0.88, 같은 촬영 환경의 OOF 기준).
     따라서 <b>신뢰도 임계값만으로는 "모르는 약"을 걸러낼 수 없다.</b> 병용 금기 안내처럼 틀린 이름이 위험으로 이어지는 기능에는
     (1) 학습에 없는 약으로 따로 만든 검증 세트에서 거부율과 임계값을 보정하고, (2) 약 이름·각인을 사용자가 확인하는 단계를 필수로 두어야 한다.
     현재 데이터에는 독립된 "모르는 약" 검증 세트가 없어, 이 보고서는 운영 임계값을 제시하지 않는다.</li>
@@ -547,9 +550,9 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
 
 <!-- ================= 부록 ================= -->
 <h2>부록 A. 56종 클래스별 AP (5-Fold OOF)</h2>
-<p class="src">현재 최종 후보와 같은 구성(WBF 2:1, IoU 0.7)의 OOF. "19종"은 한 fold에만 있어 검증될 때 항상 학습에 없는 약이다. "학습 박스"는 그 약이 검증될 때 나머지 fold에 있던 같은 약 박스 수의 평균. 출처: reports/experiments/error_per_class.csv</p>
-<table class="appx"><tr><th>약 이름</th><th class="n">코드</th><th>그룹</th><th class="n">AP50-95</th><th class="n">AP50</th><th class="n">정답</th><th class="n">조합</th><th class="n">학습 박스</th></tr><tr><td>노바스크정 5mg</td><td class="n">19861</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>리바로정 4mg</td><td class="n">29667</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">18</td><td class="n">9</td><td class="n">8.6</td></tr><tr><td>리피로우정 20mg</td><td class="n">22074</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">16</td><td class="n">9</td><td class="n">11.9</td></tr><tr><td>리피토정 20mg</td><td class="n">16232</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">21</td><td class="n">11</td><td class="n">15.3</td></tr><tr><td>무코스타정(레바미피드)(비매품)</td><td class="n">3544</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>스토가정 10mg</td><td class="n">19607</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>아질렉트정(라사길린메실산염)</td><td class="n">31863</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">12</td><td class="n">9</td><td class="n">9.5</td></tr><tr><td>엑스포지정 5/160mg</td><td class="n">20877</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">12</td><td class="n">4</td><td class="n">7.5</td></tr><tr><td>종근당글리아티린연질캡슐(콜린알포세레이트) </td><td class="n">18357</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">13</td><td class="n">9</td><td class="n">10.3</td></tr><tr><td>큐시드정 31.5mg/PTP</td><td class="n">25438</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>크레스토정 20mg</td><td class="n">16262</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">23</td><td class="n">11</td><td class="n">17.2</td></tr><tr><td>트라젠타정(리나글립틴)</td><td class="n">28763</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">9</td><td class="n">3</td><td class="n">6.0</td></tr><tr><td>기넥신에프정(은행엽엑스)(수출용)</td><td class="n">3483</td><td>37종</td><td class="n">0.997</td><td class="n">1.000</td><td class="n">45</td><td class="n">15</td><td class="n">35.6</td></tr><tr><td>일양하이트린정 2mg</td><td class="n">3351</td><td>37종</td><td class="n">0.996</td><td class="n">1.000</td><td class="n">157</td><td class="n">89</td><td class="n">125.5</td></tr><tr><td>로수바미브정 10/20mg</td><td class="n">38162</td><td>37종</td><td class="n">0.994</td><td class="n">1.000</td><td class="n">18</td><td class="n">10</td><td class="n">13.7</td></tr><tr><td>자누메트정 50/850mg</td><td class="n">25367</td><td>37종</td><td class="n">0.993</td><td class="n">0.993</td><td class="n">12</td><td class="n">4</td><td class="n">9.0</td></tr><tr><td>카발린캡슐 25mg</td><td class="n">41768</td><td>37종</td><td class="n">0.993</td><td class="n">1.000</td><td class="n">16</td><td class="n">9</td><td class="n">12.6</td></tr><tr><td>뉴로메드정(옥시라세탐)</td><td class="n">3832</td><td>37종</td><td class="n">0.992</td><td class="n">0.992</td><td class="n">20</td><td class="n">10</td><td class="n">14.7</td></tr><tr><td>리리카캡슐 150mg</td><td class="n">18147</td><td>37종</td><td class="n">0.992</td><td class="n">1.000</td><td class="n">15</td><td class="n">9</td><td class="n">11.6</td></tr><tr><td>마도파정</td><td class="n">20014</td><td>37종</td><td class="n">0.992</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.3</td></tr><tr><td>에빅사정(메만틴염산염)(비매품)</td><td class="n">13900</td><td>37종</td><td class="n">0.989</td><td class="n">1.000</td><td class="n">15</td><td class="n">7</td><td class="n">12.0</td></tr><tr><td>글리아타민연질캡슐</td><td class="n">32310</td><td>37종</td><td class="n">0.988</td><td class="n">1.000</td><td class="n">15</td><td class="n">9</td><td class="n">11.9</td></tr><tr><td>플라빅스정 75mg</td><td class="n">20238</td><td>37종</td><td class="n">0.988</td><td class="n">1.000</td><td class="n">20</td><td class="n">11</td><td class="n">15.7</td></tr><tr><td>트윈스타정 40/5mg</td><td class="n">27733</td><td>37종</td><td class="n">0.986</td><td class="n">1.000</td><td class="n">12</td><td class="n">4</td><td class="n">4.5</td></tr><tr><td>자누비아정 50mg</td><td class="n">22347</td><td>37종</td><td class="n">0.978</td><td class="n">0.978</td><td class="n">9</td><td class="n">3</td><td class="n">6.0</td></tr><tr><td>글리틴정(콜린알포세레이트)</td><td class="n">33880</td><td>37종</td><td class="n">0.973</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.1</td></tr><tr><td>가바토파정 100mg</td><td class="n">16548</td><td>37종</td><td class="n">0.967</td><td class="n">1.000</td><td class="n">18</td><td class="n">6</td><td class="n">13.0</td></tr><tr><td>아모잘탄정 5/100mg</td><td class="n">25469</td><td>37종</td><td class="n">0.966</td><td class="n">0.978</td><td class="n">12</td><td class="n">4</td><td class="n">4.5</td></tr><tr><td>로수젯정10/5밀리그램</td><td class="n">36637</td><td>37종</td><td class="n">0.963</td><td class="n">0.977</td><td class="n">19</td><td class="n">10</td><td class="n">13.6</td></tr><tr><td>오마코연질캡슐(오메가-3-산에틸에스테르90)</td><td class="n">16688</td><td>37종</td><td class="n">0.959</td><td class="n">1.000</td><td class="n">8</td><td class="n">7</td><td class="n">6.2</td></tr><tr><td>아토젯정 10/40mg</td><td class="n">35206</td><td>37종</td><td class="n">0.934</td><td class="n">0.941</td><td class="n">37</td><td class="n">16</td><td class="n">28.9</td></tr><tr><td>뮤테란캡슐 100mg</td><td class="n">2483</td><td>37종</td><td class="n">0.928</td><td class="n">1.000</td><td class="n">9</td><td class="n">3</td><td class="n">4.0</td></tr><tr><td>콜리네이트연질캡슐 400mg</td><td class="n">19232</td><td>37종</td><td class="n">0.923</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.3</td></tr><tr><td>아토르바정 10mg</td><td class="n">21325</td><td>37종</td><td class="n">0.884</td><td class="n">0.901</td><td class="n">22</td><td class="n">10</td><td class="n">16.9</td></tr><tr><td>에어탈정(아세클로페낙)</td><td class="n">4543</td><td>37종</td><td class="n">0.867</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>보령부스파정 5mg</td><td class="n">1900</td><td>37종</td><td class="n">0.749</td><td class="n">0.773</td><td class="n">15</td><td class="n">5</td><td class="n">8.4</td></tr><tr><td>트라젠타듀오정 2.5/850mg</td><td class="n">30308</td><td>37종</td><td class="n">0.663</td><td class="n">0.663</td><td class="n">9</td><td class="n">3</td><td class="n">4.0</td></tr></table>
-<table class="appx" style="margin-top:0"><tr><th>약 이름</th><th class="n">코드</th><th>그룹</th><th class="n">AP50-95</th><th class="n">AP50</th><th class="n">정답</th><th class="n">조합</th><th class="n">학습 박스</th></tr><tr><td>동아가바펜틴정 800mg</td><td class="n">16551</td><td>19종</td><td class="n">0.135</td><td class="n">0.243</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>놀텍정 10mg</td><td class="n">24850</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>다보타민큐정 10mg/병</td><td class="n">12778</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">6</td><td class="n">2</td><td class="n">0.0</td></tr><tr><td>라비에트정 20mg</td><td class="n">21771</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>레일라정</td><td class="n">29451</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>리렉스펜정 300mg/PTP</td><td class="n">12081</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>맥시부펜이알정 300mg</td><td class="n">22362</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>비모보정 500/20mg</td><td class="n">29345</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">6</td><td class="n">2</td><td class="n">0.0</td></tr><tr><td>신바로정</td><td class="n">33009</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>써스펜8시간이알서방정 650mg</td><td class="n">13395</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>아빌리파이정 10mg</td><td class="n">12247</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>알드린정</td><td class="n">3743</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>에스원엠프정 20mg</td><td class="n">33208</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>울트라셋이알서방정</td><td class="n">27926</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>자누메트엑스알서방정 100/1000mg</td><td class="n">31885</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>제미메트서방정 50/1000mg</td><td class="n">34597</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>졸로푸트정 100mg</td><td class="n">27993</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>카나브정 60mg</td><td class="n">27777</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>트루비타정 60mg/병</td><td class="n">19552</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr></table>
+<p class="src">현재 최종 후보와 같은 구성(WBF 2:1, IoU 0.6)의 OOF. "19종"은 한 fold에만 있어 검증될 때 항상 학습에 없는 약이다. "학습 박스"는 그 약이 검증될 때 나머지 fold에 있던 같은 약 박스 수의 평균. 출처: reports/experiments/error_per_class.csv</p>
+<table class="appx"><tr><th>약 이름</th><th class="n">코드</th><th>그룹</th><th class="n">AP50-95</th><th class="n">AP50</th><th class="n">정답</th><th class="n">조합</th><th class="n">학습 박스</th></tr><tr><td>노바스크정 5mg</td><td class="n">19861</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>리바로정 4mg</td><td class="n">29667</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">18</td><td class="n">9</td><td class="n">8.6</td></tr><tr><td>리피로우정 20mg</td><td class="n">22074</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">16</td><td class="n">9</td><td class="n">11.9</td></tr><tr><td>리피토정 20mg</td><td class="n">16232</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">21</td><td class="n">11</td><td class="n">15.3</td></tr><tr><td>무코스타정(레바미피드)(비매품)</td><td class="n">3544</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>스토가정 10mg</td><td class="n">19607</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>아질렉트정(라사길린메실산염)</td><td class="n">31863</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">12</td><td class="n">9</td><td class="n">9.5</td></tr><tr><td>엑스포지정 5/160mg</td><td class="n">20877</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">12</td><td class="n">4</td><td class="n">7.5</td></tr><tr><td>종근당글리아티린연질캡슐(콜린알포세레이트) </td><td class="n">18357</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">13</td><td class="n">9</td><td class="n">10.3</td></tr><tr><td>큐시드정 31.5mg/PTP</td><td class="n">25438</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>크레스토정 20mg</td><td class="n">16262</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">23</td><td class="n">11</td><td class="n">17.2</td></tr><tr><td>트라젠타정(리나글립틴)</td><td class="n">28763</td><td>37종</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">9</td><td class="n">3</td><td class="n">6.0</td></tr><tr><td>기넥신에프정(은행엽엑스)(수출용)</td><td class="n">3483</td><td>37종</td><td class="n">0.997</td><td class="n">1.000</td><td class="n">45</td><td class="n">15</td><td class="n">35.6</td></tr><tr><td>일양하이트린정 2mg</td><td class="n">3351</td><td>37종</td><td class="n">0.996</td><td class="n">1.000</td><td class="n">157</td><td class="n">89</td><td class="n">125.5</td></tr><tr><td>로수바미브정 10/20mg</td><td class="n">38162</td><td>37종</td><td class="n">0.993</td><td class="n">1.000</td><td class="n">18</td><td class="n">10</td><td class="n">13.7</td></tr><tr><td>에빅사정(메만틴염산염)(비매품)</td><td class="n">13900</td><td>37종</td><td class="n">0.993</td><td class="n">1.000</td><td class="n">15</td><td class="n">7</td><td class="n">12.0</td></tr><tr><td>자누메트정 50/850mg</td><td class="n">25367</td><td>37종</td><td class="n">0.993</td><td class="n">0.993</td><td class="n">12</td><td class="n">4</td><td class="n">9.0</td></tr><tr><td>카발린캡슐 25mg</td><td class="n">41768</td><td>37종</td><td class="n">0.993</td><td class="n">1.000</td><td class="n">16</td><td class="n">9</td><td class="n">12.6</td></tr><tr><td>뉴로메드정(옥시라세탐)</td><td class="n">3832</td><td>37종</td><td class="n">0.992</td><td class="n">0.992</td><td class="n">20</td><td class="n">10</td><td class="n">14.7</td></tr><tr><td>리리카캡슐 150mg</td><td class="n">18147</td><td>37종</td><td class="n">0.992</td><td class="n">1.000</td><td class="n">15</td><td class="n">9</td><td class="n">11.6</td></tr><tr><td>마도파정</td><td class="n">20014</td><td>37종</td><td class="n">0.992</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.3</td></tr><tr><td>글리아타민연질캡슐</td><td class="n">32310</td><td>37종</td><td class="n">0.988</td><td class="n">1.000</td><td class="n">15</td><td class="n">9</td><td class="n">11.9</td></tr><tr><td>플라빅스정 75mg</td><td class="n">20238</td><td>37종</td><td class="n">0.988</td><td class="n">1.000</td><td class="n">20</td><td class="n">11</td><td class="n">15.7</td></tr><tr><td>트윈스타정 40/5mg</td><td class="n">27733</td><td>37종</td><td class="n">0.986</td><td class="n">1.000</td><td class="n">12</td><td class="n">4</td><td class="n">4.5</td></tr><tr><td>자누비아정 50mg</td><td class="n">22347</td><td>37종</td><td class="n">0.978</td><td class="n">0.978</td><td class="n">9</td><td class="n">3</td><td class="n">6.0</td></tr><tr><td>글리틴정(콜린알포세레이트)</td><td class="n">33880</td><td>37종</td><td class="n">0.972</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.1</td></tr><tr><td>가바토파정 100mg</td><td class="n">16548</td><td>37종</td><td class="n">0.967</td><td class="n">1.000</td><td class="n">18</td><td class="n">6</td><td class="n">13.0</td></tr><tr><td>오마코연질캡슐(오메가-3-산에틸에스테르90)</td><td class="n">16688</td><td>37종</td><td class="n">0.967</td><td class="n">1.000</td><td class="n">8</td><td class="n">7</td><td class="n">6.2</td></tr><tr><td>아모잘탄정 5/100mg</td><td class="n">25469</td><td>37종</td><td class="n">0.966</td><td class="n">0.978</td><td class="n">12</td><td class="n">4</td><td class="n">4.5</td></tr><tr><td>로수젯정10/5밀리그램</td><td class="n">36637</td><td>37종</td><td class="n">0.963</td><td class="n">0.977</td><td class="n">19</td><td class="n">10</td><td class="n">13.6</td></tr><tr><td>아토젯정 10/40mg</td><td class="n">35206</td><td>37종</td><td class="n">0.935</td><td class="n">0.942</td><td class="n">37</td><td class="n">16</td><td class="n">28.9</td></tr><tr><td>뮤테란캡슐 100mg</td><td class="n">2483</td><td>37종</td><td class="n">0.928</td><td class="n">1.000</td><td class="n">9</td><td class="n">3</td><td class="n">4.0</td></tr><tr><td>콜리네이트연질캡슐 400mg</td><td class="n">19232</td><td>37종</td><td class="n">0.920</td><td class="n">1.000</td><td class="n">17</td><td class="n">9</td><td class="n">13.3</td></tr><tr><td>아토르바정 10mg</td><td class="n">21325</td><td>37종</td><td class="n">0.884</td><td class="n">0.901</td><td class="n">22</td><td class="n">10</td><td class="n">16.9</td></tr><tr><td>에어탈정(아세클로페낙)</td><td class="n">4543</td><td>37종</td><td class="n">0.883</td><td class="n">1.000</td><td class="n">6</td><td class="n">2</td><td class="n">3.0</td></tr><tr><td>보령부스파정 5mg</td><td class="n">1900</td><td>37종</td><td class="n">0.750</td><td class="n">0.775</td><td class="n">15</td><td class="n">5</td><td class="n">8.4</td></tr><tr><td>트라젠타듀오정 2.5/850mg</td><td class="n">30308</td><td>37종</td><td class="n">0.636</td><td class="n">0.636</td><td class="n">9</td><td class="n">3</td><td class="n">4.0</td></tr></table>
+<table class="appx" style="margin-top:0"><tr><th>약 이름</th><th class="n">코드</th><th>그룹</th><th class="n">AP50-95</th><th class="n">AP50</th><th class="n">정답</th><th class="n">조합</th><th class="n">학습 박스</th></tr><tr><td>동아가바펜틴정 800mg</td><td class="n">16551</td><td>19종</td><td class="n">0.100</td><td class="n">0.200</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>놀텍정 10mg</td><td class="n">24850</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>다보타민큐정 10mg/병</td><td class="n">12778</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">6</td><td class="n">2</td><td class="n">0.0</td></tr><tr><td>라비에트정 20mg</td><td class="n">21771</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>레일라정</td><td class="n">29451</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>리렉스펜정 300mg/PTP</td><td class="n">12081</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>맥시부펜이알정 300mg</td><td class="n">22362</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>비모보정 500/20mg</td><td class="n">29345</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">6</td><td class="n">2</td><td class="n">0.0</td></tr><tr><td>신바로정</td><td class="n">33009</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>써스펜8시간이알서방정 650mg</td><td class="n">13395</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>아빌리파이정 10mg</td><td class="n">12247</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>알드린정</td><td class="n">3743</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>에스원엠프정 20mg</td><td class="n">33208</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>울트라셋이알서방정</td><td class="n">27926</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>자누메트엑스알서방정 100/1000mg</td><td class="n">31885</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>제미메트서방정 50/1000mg</td><td class="n">34597</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>졸로푸트정 100mg</td><td class="n">27993</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>카나브정 60mg</td><td class="n">27777</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr><tr><td>트루비타정 60mg/병</td><td class="n">19552</td><td>19종</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">3</td><td class="n">1</td><td class="n">0.0</td></tr></table>
 
 <h2 class="cont">부록 B. 요구사항 충족 (R1~R17)</h2>
 <table>
@@ -561,7 +564,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R5</td><td>파일 구조·메타데이터 확인</td><td>파일명 ↔ 라벨 대조, 무결성 검사, 라벨 감사 A~E, 라벨 오류 15건 수정 (보고서 3장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R6</td><td>전처리</td><td>해상도 640/960/1280 (6.1절), CLAHE 5-Fold 전후 비교 (6.5절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R7</td><td>데이터 증강</td><td>상하 뒤집기·밝기·Copy-Paste 전후 비교 (6.1·6.4절)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 35개 (9장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 36개 (9장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R9</td><td>VGG·ResNet·YOLO 등 모델</td><td>YOLO11n·s·m·YOLO26s, VGG16·ResNet50·EfficientNet-B0 (6.1·6.3절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>

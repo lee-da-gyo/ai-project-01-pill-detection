@@ -71,13 +71,13 @@ def main():
         val = set(folds.loc[folds["fold"] == k, "file_name"])
         g = gt[gt["file_name"].isin(val)]
         b, e = scores(base[base["file_name"].isin(val)], g, learnable), scores(exp[exp["file_name"].isin(val)], g, learnable)
-        for m in ("learnable_mAP50_95", "oof_mAP50_95"):
+        for m in ("learnable_mAP75_95", "learnable_mAP50_95", "oof_mAP50_95"):
             rows.append({"section": f"fold {k}", "metric": m, args.base: b[m], args.exp: e[m], "delta": round(e[m] - b[m], 4)})
 
     # 조합 단위 부트스트랩 (두 실험에 같은 표본을 써서 차이의 분포를 본다)
     combos = folds.groupby("combo")["file_name"].apply(list)
     rng = np.random.default_rng(args.seed)
-    deltas = {m: [] for m in ("learnable_mAP50_95", "oof_mAP50_95")}
+    deltas = {m: [] for m in ("learnable_mAP75_95", "learnable_mAP50_95", "oof_mAP50_95")}
     for _ in range(args.n_boot):
         picks = list(enumerate(combos.iloc[rng.integers(0, len(combos), len(combos))]))
         g = resample(gt, picks)

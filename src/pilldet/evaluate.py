@@ -39,7 +39,7 @@ def coco_map(pred: pd.DataFrame, gt: pd.DataFrame) -> dict:
     coco_gt, img_id = _to_coco(gt)
     p = pred[pred["file_name"].isin(img_id)]
     if p.empty:
-        return {"mAP50_95": 0.0, "mAP50": 0.0, "mAP75": 0.0, "per_class": pd.DataFrame(), "per_iou": {}}
+        return {"mAP50_95": 0.0, "mAP50": 0.0, "mAP75": 0.0, "mAP75_95": 0.0, "per_class": pd.DataFrame(), "per_iou": {}}
     dets = [{"image_id": img_id[r.file_name], "category_id": int(r.category_id), "bbox": [r.x, r.y, r.w, r.h],
              "score": float(r.score)} for r in p.itertuples()]
     with contextlib.redirect_stdout(io.StringIO()):
@@ -62,7 +62,10 @@ def coco_map(pred: pd.DataFrame, gt: pd.DataFrame) -> dict:
     # IoU 임계값별 mAP: 50과 50-95의 차이가 위치 정밀도에서 오는지 볼 때 쓴다
     per_iou = {round(float(t), 2): float(prec[i][prec[i] > -1].mean()) if (prec[i] > -1).any() else np.nan
                for i, t in enumerate(ev.params.iouThrs)}
+    # 대회 평가 지표 mAP@[0.75:0.95]: IoU 0.75 ~ 0.95 (0.05 간격) 5개 기준의 평균
+    strict = prec[[i for i, t in enumerate(ev.params.iouThrs) if t >= 0.75 - 1e-9]]
     return {"mAP50_95": float(ev.stats[0]), "mAP50": float(ev.stats[1]), "mAP75": float(ev.stats[2]),
+            "mAP75_95": float(strict[strict > -1].mean()) if (strict > -1).any() else float("nan"),
             "per_class": pd.DataFrame(rows), "per_iou": per_iou}
 
 

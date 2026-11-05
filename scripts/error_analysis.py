@@ -11,7 +11,7 @@ mAP 한 숫자를 나눠서 "어디서 점수를 잃는가"를 본다.
 새 학습은 없다. fold별 검증 예측(val_predictions.csv)을 다시 쓴다.
 
 사용법
-    python scripts/error_analysis.py                       # 기본: e0_baseline + e2_yolo11m, WBF IoU 0.7, 2:1
+    python scripts/error_analysis.py                       # 기본: e0_baseline + e2_yolo11m, WBF IoU 0.6, 2:1
     python scripts/error_analysis.py --conf 0.25 0.5       # 실패 유형 신뢰도 임계값 (첫 값이 주 결과, 나머지는 민감도)
 
 산출물
@@ -268,10 +268,10 @@ def competing_labels(boxes: pd.DataFrame, conf: float) -> tuple[int, int]:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--exps", nargs="+", default=["e0_baseline", "e2_yolo11m"])
-    ap.add_argument("--iou-thr", type=float, default=0.7, help="WBF IoU (README 7장에서 고른 값)")
+    ap.add_argument("--iou-thr", type=float, default=0.6, help="WBF IoU (README 7장에서 고른 값)")
     ap.add_argument("--weights", nargs="+", type=float, default=[2, 1], help="모델별 WBF 가중치 (현재 최종 후보 11s:11m = 2:1)")
     ap.add_argument("--conf", nargs="+", type=float, default=[0.25, 0.5])
-    ap.add_argument("--submission", default="final_11s_11m_wbf", help="테스트 예측 그림에 쓸 제출 파일")
+    ap.add_argument("--submission", default="final_11s_11m_wbf_iou06", help="테스트 예측 그림에 쓸 제출 파일")
     args = ap.parse_args()
 
     P = get_paths(REPO_DIR)

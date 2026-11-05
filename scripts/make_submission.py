@@ -67,7 +67,7 @@ def main():
     ap.add_argument("--weights", nargs="+", type=float, default=None)
     ap.add_argument("--name", required=True)
     ap.add_argument("--tta", action="store_true")
-    ap.add_argument("--iou-thr", type=float, default=0.55)
+    ap.add_argument("--iou-thr", type=float, default=0.6)
     ap.add_argument("--conf", type=float, default=0.001, help="mAP 평가는 낮은 점수 예측까지 순위로 쓴다")
     ap.add_argument("--max-det", type=int, default=100, help="COCO maxDets=100")
     args = ap.parse_args()

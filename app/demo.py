@@ -1,6 +1,6 @@
 """경구약제 검출 데모 – 사진을 올리면 알약 위치·약 이름·신뢰도를 보여 준다.
 
-현재 최종 후보와 같은 구성: 232장 전체로 학습한 YOLO11s + YOLO11m의 예측을 WBF(11s:11m = 2:1, IoU 0.7)로 합친다.
+현재 최종 후보와 같은 구성: 232장 전체로 학습한 YOLO11s + YOLO11m의 예측을 WBF(11s:11m = 2:1, IoU 0.6)로 합친다.
 처음 보는 약도 학습한 약 이름 중 하나로 답할 수 있으므로(보고서 8.5절), 신뢰도가 낮거나 같은 알약에
 이름이 둘 이상 붙으면 "사용자 확인 필요"로 표시한다. 이 표시는 오답을 모두 거르지 못한다.
 
@@ -32,7 +32,7 @@ from pilldet.predict import predict_images  # noqa: E402
 
 MODELS = [REPO_DIR / "runs" / "final_yolo11s" / "weights" / "last.pt", REPO_DIR / "runs" / "final_yolo11m" / "weights" / "last.pt"]
 WBF_WEIGHTS = [2, 1]  # 11s:11m, 5-Fold OOF 근사 메타 검증으로 고른 값 (README 7장)
-WBF_IOU = 0.7
+WBF_IOU = 0.6
 SHOW_CONF = 0.25  # 이 신뢰도 이상인 박스만 보여 준다 (Ultralytics 예측 기본값)
 CHECK_CONF = 0.5  # 이보다 낮으면 사용자 확인 필요 (운영 임계값이 아니라 데모용 표시 기준)
 
@@ -119,7 +119,7 @@ def main():
                          "확인": "필요" if r.score < CHECK_CONF or len(g) > 1 else "–"})
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         st.warning("이 결과는 학습 데이터(단색 배경·고정 촬영)의 56종 안에서만 의미가 있습니다. 처음 보는 약도 높은 신뢰도로 "
-                   "다른 약 이름을 붙일 수 있어(검증에서 처음 보는 약의 30%가 신뢰도 0.9 이상), 복약 판단에는 반드시 약 이름·각인을 직접 확인하세요.")
+                   "다른 약 이름을 붙일 수 있어(검증에서 처음 보는 약의 24%가 신뢰도 0.9 이상), 복약 판단에는 반드시 약 이름·각인을 직접 확인하세요.")
 
 
 if __name__ == "__main__":

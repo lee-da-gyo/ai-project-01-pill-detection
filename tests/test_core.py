@@ -514,3 +514,13 @@ def test_manifest_digest_tracks_names_boundaries_and_ignores_line_endings(tmp_pa
     (tmp_path / "a.csv").write_bytes(b"x,y\n1,")  # 파일 경계가 바뀌면(내용을 이어 붙이면 같아도) 다른 값
     (tmp_path / "b.csv").write_bytes(b"2\n3\n")
     assert manifest_digest({tmp_path: [tmp_path / "a.csv", tmp_path / "b.csv"]}) != base
+
+
+def test_coco_map_competition_metric_averages_strict_ious():
+    """대회 지표 mAP@[0.75:0.95]: IoU 0.8 예측은 0.75 · 0.80만 맞으므로 5개 기준 평균이 0.4다 (mAP50-95는 0.7)."""
+    gt = pd.DataFrame({"file_name": ["a.png"], "category_id": [1], "x": [0.0], "y": [0.0], "w": [100.0], "h": [100.0],
+                       "img_w": [200], "img_h": [200]})
+    pred = pd.DataFrame({"file_name": ["a.png"], "category_id": [1], "x": [0.0], "y": [0.0], "w": [100.0], "h": [80.0], "score": [0.9]})
+    m = coco_map(pred, gt)
+    assert m["mAP75_95"] == pytest.approx(0.4)
+    assert m["mAP50_95"] == pytest.approx(0.7)

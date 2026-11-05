@@ -1,0 +1,3 @@
+2026-11-05 09:21:57 | final_yolo11s: last.pt, imgsz 640, 전처리 없음, TTA False → 예측 6,842개
+2026-11-05 09:22:22 | final_yolo11m: last.pt, imgsz 640, 전처리 없음, TTA False → 예측 6,047개
+2026-11-05 09:22:25 | 제출 파일 submissions\final_11s_11m_wbf_iou06.csv: {'rows': 9189, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 10.91, 'max_per_image': 29}  [주의] 제출 형식 미확인

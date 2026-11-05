@@ -69,8 +69,8 @@ def load_oof(exp: str, exp_root: Path, folds: pd.DataFrame) -> pd.DataFrame:
 def scores(pred: pd.DataFrame, gt: pd.DataFrame, learnable: set) -> dict:
     m = coco_map(pred, gt)
     s = coco_map(pred[pred["category_id"].isin(learnable)], gt[gt["category_id"].isin(learnable)])
-    return {"oof_mAP50_95": round(m["mAP50_95"], 4), "oof_mAP50": round(m["mAP50"], 4),
-            "learnable_mAP50_95": round(s["mAP50_95"], 4), "learnable_mAP50": round(s["mAP50"], 4)}
+    return {"oof_mAP75_95": round(m["mAP75_95"], 4), "oof_mAP50_95": round(m["mAP50_95"], 4), "oof_mAP50": round(m["mAP50"], 4),
+            "learnable_mAP75_95": round(s["mAP75_95"], 4), "learnable_mAP50_95": round(s["mAP50_95"], 4), "learnable_mAP50": round(s["mAP50"], 4)}
 
 
 def main():
@@ -99,7 +99,7 @@ def main():
                 fused = weighted_boxes_fusion(list(preds.values()), list(w), iou_thr=thr)
                 fused_of[cfg] = fused.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
                 rows.append({"iou_thr": thr, "weights": cfg[1], **scores(fused_of[cfg], gt, learnable)})
-        wbf = pd.DataFrame(rows).sort_values("learnable_mAP50_95", ascending=False)
+        wbf = pd.DataFrame(rows).sort_values("learnable_mAP75_95", ascending=False)  # 대회 지표 기준
         wbf.to_csv(P.out / "experiments" / "wbf_oof.csv", index=False)
         print(f"\nWBF ({' : '.join(exps)}) - 같은 OOF에서 고른 최댓값이라 낙관적이다 (탐색용)\n" + wbf.to_string(index=False))
         meta_validate(fused_of, gt, folds, learnable, P.out / "experiments" / "wbf_meta_validation.csv")
@@ -120,17 +120,22 @@ def meta_validate(fused_of: dict, gt: pd.DataFrame, folds: pd.DataFrame, learnab
     for k in range(N_FOLDS):
         val = set(folds.loc[folds["fold"] == k, "file_name"])
         inner_gt = gt[~gt["file_name"].isin(val)]
-        inner = {cfg: scores(p[~p["file_name"].isin(val)], inner_gt, learnable)["learnable_mAP50_95"]
-                 for cfg, p in fused_of.items()}
+        inner_gt_l = inner_gt[inner_gt["category_id"].isin(learnable)]
+        inner = {}
+        for cfg, p in fused_of.items():  # 반올림 전 값으로 고른다 (넷째 자리에서 생기는 가짜 동점을 막는다)
+            q = p[~p["file_name"].isin(val)]
+            inner[cfg] = coco_map(q[q["category_id"].isin(learnable)], inner_gt_l)["mAP75_95"]
         best = max(inner, key=inner.get)  # 동점이면 그리드 순서상 앞의 설정
         held = fused_of[best][fused_of[best]["file_name"].isin(val)]
         h = scores(held, gt[gt["file_name"].isin(val)], learnable)
         picked.append({"held_out_fold": str(k), "iou_thr": best[0], "weights": best[1],
-                       "inner_learnable_mAP50_95": inner[best],
+                       "inner_learnable_mAP75_95": round(inner[best], 4),
+                       "held_out_learnable_mAP75_95": h["learnable_mAP75_95"], "held_out_mAP75_95": h["oof_mAP75_95"],
                        "held_out_learnable_mAP50_95": h["learnable_mAP50_95"], "held_out_mAP50_95": h["oof_mAP50_95"]})
         held_out.append(held)
     s = scores(pd.concat(held_out, ignore_index=True), gt, learnable)
-    picked.append({"held_out_fold": "합산(5 fold 보류 예측)", "iou_thr": None, "weights": None, "inner_learnable_mAP50_95": None,
+    picked.append({"held_out_fold": "합산(5 fold 보류 예측)", "iou_thr": None, "weights": None, "inner_learnable_mAP75_95": None,
+                   "held_out_learnable_mAP75_95": s["learnable_mAP75_95"], "held_out_mAP75_95": s["oof_mAP75_95"],
                    "held_out_learnable_mAP50_95": s["learnable_mAP50_95"], "held_out_mAP50_95": s["oof_mAP50_95"]})
     res = pd.DataFrame(picked)
     res.to_csv(out, index=False, encoding="utf-8-sig")
