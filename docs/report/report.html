@@ -14,7 +14,7 @@
     <h1>경구약제 이미지 객체 검출</h1>
     <div class="lead">사진 한 장에서 최대 4개 알약의 종류(56종)와 위치를 찾는다</div>
     <table class="meta" style="width:auto;margin-top:14pt">
-      <tr><td>기간</td><td>2026.10.27 – 2026.11.05</td></tr>
+      <tr><td>기간</td><td>2026.10.27 – 2026.11.06</td></tr>
       <tr><td>작성</td><td>이다교 (<a href="https://github.com/lee-da-gyo">github.com/lee-da-gyo</a>)</td></tr>
       <tr><td>저장소</td><td><a href="https://github.com/lee-da-gyo/ai-project-01-pill-detection">github.com/lee-da-gyo/ai-project-01-pill-detection</a></td></tr>
       <tr><td>환경</td><td>Python 3.14 · PyTorch 2.11 · Ultralytics 8.4 · RTX 3060 12GB</td></tr>
@@ -463,6 +463,7 @@ python scripts/analyze_oof.py e0_baseline e2_yolo11m
 python scripts/run_experiment.py --config configs/final_yolo11s.yaml   # final_yolo11m도 같은 방식
 python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2 1 --iou-thr 0.7 --name final_11s_11m_wbf</pre>
 <p class="src">GPU 학습은 cuDNN 비결정성 때문에 같은 시드에서도 가중치가 비트 단위로 같지 않을 수 있다. 재현 기준은 5-Fold 점수가 소수 셋째 자리 수준에서 같은 것이다.</p>
+<p><b>실행 환경 혼재 가능성</b>: 설치된 pandas · Pillow가 10/30 09:34경(설치 폴더 시각) 3.0.3 · 12.3.0에서 2.3.3 · 11.3.0으로 바뀐 것으로 보이며, 원인은 확인하지 못했다. 산출물 시각 기준으로 e0_baseline fold 0(09:28 완료)과 라벨 수정 전 탐색은 이전 버전, fold 1(09:37 완료)은 교체 시점에 걸쳐 있고, 나머지 5-Fold · 최종 모델 · 제출 · 테스트는 이후 버전이다. fold별 환경을 기록하지 않아 시각으로 추정한 것이다. 두 라이브러리의 차이가 점수에 영향을 줬는지는 재실행으로 검증하지 않았다. <code>requirements.txt</code>는 최종 모델을 만든 환경의 버전이다. 새 가상환경(같은 PC, Python 3.14.6, CPU용 PyTorch)에 <code>requirements.txt</code>를 설치해 의존성 검사와 단위 테스트 37개, 라벨 감사 재현을 확인했다. 다른 PC와 GPU 학습 재현은 확인하지 않았다.</p>
 
 <!-- ================= 10. 업무 수행 ================= -->
 <h2>10. 업무 수행 과정</h2>
@@ -517,6 +518,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <li>한 fold에만 있는 희귀 19종의 실제 성능은 이 검증으로 잴 수 없다.</li>
   <li>단색 배경·고정 촬영 환경의 데이터다. 사용자가 손으로 찍은 사진(조명, 배경, 각도)에서는 성능이 낮아질 수 있다.</li>
   <li>근사 메타 검증은 완전히 격리된 추정이 아니며, 최종 에포크는 휴리스틱이다.</li>
+  <li>일부 5-Fold 산출물은 pandas · Pillow 버전이 다른 환경에서 만들어졌을 수 있다 (9.2절).</li>
   <li>라벨 감사 E는 모델 예측으로 후보를 만들었으므로, 모델이 같이 틀린 라벨 오류는 찾지 못한다. 남은 라벨 오류의 수는 알 수 없다.</li>
 </ul>
 
