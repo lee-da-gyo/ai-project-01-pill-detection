@@ -1,0 +1,3 @@
+2026-11-05 19:55:16 | a2_aihub_full_yolo11s: last.pt, imgsz 640, 전처리 없음, TTA False → 예측 4,295개
+2026-11-05 19:55:38 | a3_aihub_full_yolo11m: last.pt, imgsz 640, 전처리 없음, TTA False → 예측 5,194개
+2026-11-05 19:55:39 | 제출 파일 submissions\a4_aihub_wbf.csv: {'rows': 5510, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 6.54, 'max_per_image': 23}

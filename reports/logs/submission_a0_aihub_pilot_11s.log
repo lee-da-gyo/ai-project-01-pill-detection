@@ -1,0 +1,2 @@
+2026-11-05 14:46:14 | a0_aihub_pilot_yolo11s: best.pt, imgsz 640, 전처리 없음, TTA False → 예측 10,576개
+2026-11-05 14:46:14 | 제출 파일 submissions\a0_aihub_pilot_11s.csv: {'rows': 10576, 'images_with_pred': 842, 'test_images': 842, 'images_without_pred': 0, 'rows_per_image': 12.56, 'max_per_image': 28}
