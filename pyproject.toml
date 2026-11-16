@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pilldet"
+version = "1.0.0"
+description = "경구약제 이미지 객체 검출: 라벨 정제, 조합 단위 5-Fold, COCO mAP 평가, WBF 앙상블"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+# 정확한 검증 버전은 requirements.txt에 고정했다 (Python 3.14, Windows 11 · Ubuntu CI)
+dependencies = [
+    "numpy", "pandas", "matplotlib", "pillow", "opencv-python", "scikit-learn", "scipy",
+    "pycocotools", "pyyaml", "torch", "torchvision", "ultralytics",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+app = ["streamlit"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# 편집 가능 설치(pip install -e .)를 기준으로 한다.
+# pilldet.evaluate는 저장소의 configs/evaluation.yaml을 읽으므로, 저장소 밖으로 복사해 설치하는 방식은 지원하지 않는다.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

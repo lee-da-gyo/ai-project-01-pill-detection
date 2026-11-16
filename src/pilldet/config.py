@@ -49,9 +49,19 @@ class Paths:
     dataset: Path  # YOLO 데이터셋
 
 
-def get_paths(repo_dir: Path, data_root: Path | None = None) -> Paths:
-    """실행 환경에 맞는 경로 묶음을 만든다. 출력 폴더는 미리 만들어 둔다."""
-    data_root = data_root or find_data_root(repo_dir)
+def get_paths(repo_dir: Path, data_root: Path | None = None, require_data: bool = True) -> Paths:
+    """실행 환경에 맞는 경로 묶음을 만든다. 출력 폴더는 미리 만들어 둔다.
+
+    require_data=False: 저장소에 커밋된 산출물(OOF 예측, folds.csv, 정제 라벨)만 쓰는 분석 스크립트용.
+    원본 데이터가 없어도 멈추지 않고, 이미지 경로는 존재하지 않는 기본 위치를 가리킨다.
+    """
+    if data_root is None:
+        try:
+            data_root = find_data_root(repo_dir)
+        except FileNotFoundError:
+            if require_data:
+                raise
+            data_root = repo_dir.parent / DATA_DIR_NAME
     base = KAGGLE_WORKING if is_kaggle() else repo_dir
     out = KAGGLE_WORKING if is_kaggle() else repo_dir / "reports"
     paths = Paths(

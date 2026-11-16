@@ -23,12 +23,34 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt ruff==0.15.1  # 로컬 검사와 같은 버전
+          pip install -e . --no-deps
+          pip freeze > pip-freeze.txt
 
       - name: 코드 검사 (ruff)
         run: ruff check src scripts tests
 
       - name: 단위 테스트 (데이터 없이 실행)
+        shell: bash  # pipefail: tee를 거쳐도 pytest 실패가 단계 실패로 남는다
         env:
           YOLO_CONFIG_DIR: /tmp/ultralytics
           MPLBACKEND: Agg
-        run: python -m pytest tests -v
+        run: python -m pytest tests -v --junitxml=pytest-report.xml | tee pytest-ci.log
+
+      - name: 커밋된 OOF 분석 결과 재현 (원본 데이터 없이)
+        env:
+          YOLO_CONFIG_DIR: /tmp/ultralytics
+          MPLBACKEND: Agg
+        run: |
+          python scripts/analyze_oof.py e0_baseline e2_yolo11m > analyze-oof-ci.log
+          git diff --exit-code --stat -- reports/experiments/oof_analysis.csv reports/experiments/wbf_oof.csv reports/experiments/wbf_meta_validation.csv
+
+      - name: 실행 기록 보관
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: |
+            pytest-ci.log
+            pytest-report.xml
+            analyze-oof-ci.log
+            pip-freeze.txt

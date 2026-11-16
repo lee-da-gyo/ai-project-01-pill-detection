@@ -9,6 +9,9 @@
 
 사용법
     python scripts/compare_oof.py e0_baseline e4_clahe
+    python scripts/compare_oof.py e0_baseline e0_baseline+e2_yolo11m --wbf-weights 2 1 --wbf-iou 0.6   # WBF 앙상블과 비교
+
+실험 이름을 '+'로 이으면 그 실험들의 OOF를 WBF로 합친 예측을 쓴다 (analyze_oof.py와 같은 방식: 이미지당 상위 100개).
 
 산출물
     reports/experiments/compare_<기준>_vs_<실험>.csv    (지표별 차이, 부트스트랩 구간, fold별 차이)
@@ -33,6 +36,7 @@ sys.path.insert(0, str(REPO_DIR / "scripts"))
 from analyze_oof import load_oof, scores  # noqa: E402
 from pilldet.config import N_FOLDS, SEED, get_paths  # noqa: E402
 from pilldet.data import load_clean_annotations  # noqa: E402
+from pilldet.ensemble import weighted_boxes_fusion  # noqa: E402
 from pilldet.evaluate import METRIC_DEFINITION  # noqa: E402
 
 METRICS = ["learnable_mAP75_95", "learnable_mAP50_95", "learnable_mAP50", "oof_mAP50_95", "oof_mAP50"]
@@ -45,22 +49,33 @@ def resample(df: pd.DataFrame, picks: list[tuple[int, list[str]]]) -> pd.DataFra
     return pd.concat(parts, ignore_index=True) if parts else df.iloc[:0]
 
 
+def load_side(name: str, root: Path, folds: pd.DataFrame, weights: list[float] | None, iou_thr: float) -> pd.DataFrame:
+    """실험 하나의 OOF, 또는 '+'로 이은 여러 실험의 OOF를 WBF로 합친 예측."""
+    names = name.split("+")
+    if len(names) == 1:
+        return load_oof(name, root, folds)
+    fused = weighted_boxes_fusion([load_oof(n, root, folds) for n in names], weights, iou_thr=iou_thr)
+    return fused.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("base")
     ap.add_argument("exp")
     ap.add_argument("--n-boot", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--wbf-weights", type=float, nargs="+", help="'+'로 이은 실험의 WBF 가중치 (기본: 모두 1)")
+    ap.add_argument("--wbf-iou", type=float, default=0.6, help="WBF IoU 임계값")
     args = ap.parse_args()
 
-    P = get_paths(REPO_DIR)
+    P = get_paths(REPO_DIR, require_data=False)  # 커밋된 OOF 산출물만 쓴다
     t0 = time.time()
     folds = pd.read_csv(P.out / "folds.csv")
     gt = load_clean_annotations(P.out / "annotations_clean.json")
     n_folds_of = gt.merge(folds[["file_name", "fold"]], on="file_name").groupby("category_id")["fold"].nunique()
     learnable = set(n_folds_of[n_folds_of > 1].index)
     root = P.out / "experiments"
-    base, exp = load_oof(args.base, root, folds), load_oof(args.exp, root, folds)
+    base, exp = (load_side(name, root, folds, args.wbf_weights, args.wbf_iou) for name in (args.base, args.exp))
 
     rows = []
     sb, se = scores(base, gt, learnable), scores(exp, gt, learnable)

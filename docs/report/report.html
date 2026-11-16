@@ -245,7 +245,7 @@ fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 �
   <tr><th>YOLO11s 5-Fold</th><th class="n">fold 0 / 1 / 2 / 3 / 4</th><th class="n">fold 평균</th><th class="n">37종 조건부 OOF</th></tr>
   <tr><td>원본</td><td class="n">0.836 / 0.900 / 0.936 / 0.763 / 0.879</td><td class="n">0.8626</td><td class="n">0.956</td></tr>
   <tr><td>CLAHE</td><td class="n">0.833 / 0.900 / 0.943 / 0.748 / 0.886</td><td class="n">0.8618</td><td class="n">0.962</td></tr>
-  <tr><td>차이</td><td class="n">2개 fold 상승 · 3개 fold 하락</td><td class="n">−0.0008</td><td class="n">+0.005<br>95% 구간 −0.003 ~ +0.018<br>(부트스트랩 개선 비율 88%)</td></tr>
+  <tr><td>차이</td><td class="n">2개 fold 상승 · 3개 fold 하락</td><td class="n">−0.0008</td><td class="n">+0.006 (부트스트랩 중앙값 +0.005)<br>95% 구간 −0.003 ~ +0.018<br>(부트스트랩 개선 비율 88%)</td></tr>
   <caption>표 6-4. 수정 라벨로 두 실험을 모두 다시 학습한 값 (라벨 수정 전에도 2개↑ 3개↓, 37종 OOF +0.011, 구간 −0.006 ~ +0.027로 같은 결론). 출처: reports/experiments/preprocess_clahe_stats.csv, compare_e0_baseline_vs_e4_clahe.csv</caption>
 </table>
 <p><b>결정: 미채택.</b> fold 단위로는 방향이 엇갈리고(처음 보는 약이 가장 많은 fold 3에서 −0.015), 합친 OOF의 개선도 구간이 0을 포함한다.
@@ -454,7 +454,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
   <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 오류 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
   <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
-  <tr><td><code>tests/</code></td><td>단위 테스트 함수 44개 (매개변수 포함 46개 케이스, GitHub Actions CI): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 함수 48개 (매개변수 포함 50개 케이스, GitHub Actions CI): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
 </table>
 <h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
 <ul>
@@ -478,7 +478,7 @@ python scripts/analyze_oof.py e0_baseline e2_yolo11m
 python scripts/run_experiment.py --config configs/final_yolo11s.yaml   # final_yolo11m도 같은 방식
 python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2 1 --iou-thr 0.6 --name final_11s_11m_wbf_iou06</pre>
 <p class="src">GPU 학습은 cuDNN 비결정성 때문에 같은 시드에서도 가중치가 비트 단위로 같지 않을 수 있다. 재현 기준은 5-Fold 점수가 소수 셋째 자리 수준에서 같은 것이다.</p>
-<p><b>실행 환경 혼재 가능성</b>: 설치된 pandas · Pillow가 10/30 09:34경(설치 폴더 시각) 3.0.3 · 12.3.0에서 2.3.3 · 11.3.0으로 바뀐 것으로 보이며, 원인은 확인하지 못했다. 산출물 시각 기준으로 e0_baseline fold 0(09:28 완료)과 라벨 수정 전 탐색은 이전 버전, fold 1(09:37 완료)은 교체 시점에 걸쳐 있고, 나머지 5-Fold · 최종 모델 · 제출 · 테스트는 이후 버전이다. fold별 환경을 기록하지 않아 시각으로 추정한 것이다. 두 라이브러리의 차이가 점수에 영향을 줬는지는 재실행으로 검증하지 않았다. <code>requirements.txt</code>는 최종 모델을 만든 환경의 버전이다. 새 가상환경(같은 PC, Python 3.14.6, CPU용 PyTorch)에 <code>requirements.txt</code>를 설치해 의존성 검사와 단위 테스트 37개, 라벨 감사 재현을 확인했다. 다른 PC와 GPU 학습 재현은 확인하지 않았다.</p>
+<p><b>실행 환경 혼재 가능성</b>: 설치된 pandas · Pillow가 10/30 09:34경(설치 폴더 시각) 3.0.3 · 12.3.0에서 2.3.3 · 11.3.0으로 바뀐 것으로 보이며, 원인은 확인하지 못했다. 산출물 시각 기준으로 e0_baseline fold 0(09:28 완료)과 라벨 수정 전 탐색은 이전 버전, fold 1(09:37 완료)은 교체 시점에 걸쳐 있고, 나머지 5-Fold · 최종 모델 · 제출 · 테스트는 이후 버전이다. fold별 환경을 기록하지 않아 시각으로 추정한 것이다. 두 라이브러리의 차이가 점수에 영향을 줬는지는 재실행으로 검증하지 않았다. <code>requirements.txt</code>는 최종 모델을 만든 환경의 버전이다. 새 가상환경(같은 PC, Python 3.14.6, CPU용 PyTorch)에 <code>requirements.txt</code>를 설치해 의존성 검사와 단위 테스트(확인 당시 37개, 현재 50개 케이스), 라벨 감사 재현을 확인했다. 다른 PC와 GPU 학습 재현은 확인하지 않았다.</p>
 
 <!-- ================= 10. 업무 수행 ================= -->
 <h2>10. 업무 수행 과정</h2>
@@ -576,7 +576,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R5</td><td>파일 구조·메타데이터 확인</td><td>파일명 ↔ 라벨 대조, 무결성 검사, 라벨 감사 A~E, 라벨 오류 15건 수정 (보고서 3장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R6</td><td>전처리</td><td>해상도 640/960/1280 (6.1절), CLAHE 5-Fold 전후 비교 (6.5절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R7</td><td>데이터 증강</td><td>상하 뒤집기·밝기·Copy-Paste 전후 비교 (6.1·6.4절)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 44개 (9장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 48개 (9장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R9</td><td>VGG·ResNet·YOLO 등 모델</td><td>YOLO11n·s·m·YOLO26s, VGG16·ResNet50·EfficientNet-B0 (6.1·6.3절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>

@@ -1,0 +1,53 @@
+name: WBF paired bootstrap
+
+# WBF 앙상블(11s + 11m, 2:1, IoU 0.6)과 단일 YOLO11s를 같은 조합 단위 부트스트랩으로 비교한다.
+# CLAHE · TTA 비교와 같은 기준으로 WBF 채택 근거를 다시 확인하려는 분석이다. 커밋된 OOF 예측만 쓴다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/compare_oof.py
+      - src/pilldet/ensemble.py
+      - .github/workflows/wbf-bootstrap.yml
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: 의존성 설치 (CPU용 PyTorch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: WBF vs YOLO11s 짝 비교 (조합 부트스트랩 1000회)
+        env:
+          YOLO_CONFIG_DIR: /tmp/ultralytics
+          MPLBACKEND: Agg
+        run: python scripts/compare_oof.py e0_baseline e0_baseline+e2_yolo11m --wbf-weights 2 1 --wbf-iou 0.6
+
+      - name: 결과를 실행 요약과 알림으로 남기기
+        run: |
+          f="reports/experiments/compare_e0_baseline_vs_e0_baseline+e2_yolo11m.csv"
+          { echo '```csv'; cat "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          python - "$f" <<'EOF'
+          import sys, pandas as pd
+          df = pd.read_csv(sys.argv[1])
+          cols = [c for c in df.columns if c != "metric_definition"]
+          for _, r in df[cols].iterrows():
+              print("::notice title=wbf-bootstrap::" + " | ".join(f"{c}={r[c]}" for c in cols))
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wbf-bootstrap
+          path: reports/experiments/compare_e0_baseline_vs_e0_baseline+e2_yolo11m.csv

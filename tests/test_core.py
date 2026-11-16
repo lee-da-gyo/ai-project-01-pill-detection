@@ -257,6 +257,14 @@ def test_wbf_never_merges_boxes_from_different_images():
     assert sorted(out["file_name"]) == ["a.png", "b.png"]
 
 
+def test_wbf_score_never_exceeds_one():
+    # 같은 모델(가중치 2)의 0.9 박스 두 개가 한 묶음이 되는 경우: 원 구현 식으로는 1.8 × 2 / 3 = 1.2
+    two_same_model = pd.concat([_pred(0, 0.9), _pred(2, 0.9)], ignore_index=True)
+    out = weighted_boxes_fusion([two_same_model, _pred(500, 0.1)], weights=[2, 1])
+    assert out["score"].max() <= 1.0
+    assert out.sort_values("x")["score"].iloc[0] == pytest.approx(1.0)
+
+
 def _load_script(name):
     import importlib.util
     path = Path(__file__).resolve().parents[1] / "scripts" / f"{name}.py"

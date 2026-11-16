@@ -77,7 +77,7 @@ def main():
     exps = sys.argv[1:]
     if not exps:
         raise SystemExit("실험 이름을 하나 이상 넣자. 예: python scripts/analyze_oof.py e0_baseline e2_yolo11m")
-    P = get_paths(REPO_DIR)
+    P = get_paths(REPO_DIR, require_data=False)  # 커밋된 OOF 산출물만 쓴다
     folds = pd.read_csv(P.out / "folds.csv")
     gt = load_clean_annotations(P.out / "annotations_clean.json")
     n_folds_of = gt.merge(folds[["file_name", "fold"]], on="file_name").groupby("category_id")["fold"].nunique()
