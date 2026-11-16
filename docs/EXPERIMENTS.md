@@ -113,7 +113,7 @@ fold 학습(100 에포크 스케줄)과 최종 학습(80 에포크 스케줄)은
 ## WBF 앙상블 vs 단일 YOLO11s: 짝지은 비교 (조합 부트스트랩)
 
 CLAHE · TTA와 같은 기준(37종 통합 OOF, 조합 단위 부트스트랩 1,000회, fold별 방향)으로 채택한 WBF(11s + 11m, 2:1, IoU 0.6)를 다시 확인했다.
-명령: `python scripts/compare_oof.py e0_baseline e0_baseline+e2_yolo11m --wbf-weights 2 1 --wbf-iou 0.6`. 로컬 PC의 메모리가 부족해 [GitHub Actions에서 실행](https://github.com/lee-da-gyo/ai-project-01-pill-detection/actions/runs/43910114026)했고, 결과 CSV는 그 실행의 artifact에 있다.
+명령: `python scripts/compare_oof.py e0_baseline e0_baseline+e2_yolo11m --wbf-weights 2 1 --wbf-iou 0.6`. 로컬 PC의 메모리가 부족해 [GitHub Actions에서 실행](https://github.com/lee-da-gyo/ai-project-01-pill-detection/actions/runs/43910114026)했다. 결과 CSV: [`compare_e0_baseline_vs_e0_baseline+e2_yolo11m.csv`](../reports/experiments/compare_e0_baseline_vs_e0_baseline+e2_yolo11m.csv) (CI가 push마다 다시 계산해 이 파일과 같은지 확인한다).
 
 | 37종 조건부 OOF | YOLO11s | WBF | 차이 | 부트스트랩 중앙값 (95% 구간) | 부트스트랩 개선 비율 | fold별 |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|

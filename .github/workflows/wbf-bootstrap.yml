@@ -11,6 +11,7 @@ on:
       - src/pilldet/ensemble.py
       - src/pilldet/evaluate.py
       - .github/workflows/wbf-bootstrap.yml
+      - reports/experiments/compare_*.csv
   workflow_dispatch:
 
 jobs:
