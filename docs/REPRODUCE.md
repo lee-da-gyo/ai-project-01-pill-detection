@@ -127,7 +127,7 @@ streamlit run app/demo.py
 데이터 폴더를 레포 옆(`../sprint_ai_project1_data`)에 두면 자동으로 찾는다. 다른 위치라면 `--data-dir` 옵션이나 환경 변수 `PILL_DATA_DIR`로 지정한다.
 `--skip-train`으로 기존 가중치를 다시 평가할 때는 학습 당시 설정 기록과 지금 설정이 다르면 멈춘다.
 사용자 폴더에 쓸 수 없는 환경(CI, 샌드박스)에서는 Ultralytics 설정 폴더를 지정한다: `YOLO_CONFIG_DIR=/tmp/ultralytics python -m pytest tests`
-실행 로그: [`reports/logs/`](../reports/logs) · 단위 테스트: [`reports/logs/pytest.log`](../reports/logs/pytest.log)
+실행 로그: [`reports/logs/`](../reports/logs) · 단위 테스트: [`reports/logs/pytest.log`](../reports/logs/pytest.log) (로컬 Windows) · [CI 실행 기록](https://github.com/lee-da-gyo/ai-project-01-pill-detection/actions/workflows/ci.yml) (Ubuntu, push마다)
 
 > **재현 조건** – `requirements.txt`는 최종 모델을 만든 환경(Python 3.14, Windows 11, RTX 3060)의 버전이다. 실험 도중 pandas · Pillow 버전이 바뀐 구간이 있었고, 그 범위와 검증하지 않은 부분은 [실험 기록의 재현 조건](EXPERIMENTS.md#재현-조건-실행-환경-기록)에 적었다. 단위 테스트와 코드 검사(`ruff check src scripts tests`)는 [GitHub Actions](../.github/workflows/ci.yml)에서 push마다 실행된다.
 

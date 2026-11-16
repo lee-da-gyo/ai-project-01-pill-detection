@@ -1,20 +1,34 @@
-name: WBF paired bootstrap
+name: OOF comparison reproduce
 
-# WBF 앙상블(11s + 11m, 2:1, IoU 0.6)과 단일 YOLO11s를 같은 조합 단위 부트스트랩으로 비교한다.
-# CLAHE · TTA 비교와 같은 기준으로 WBF 채택 근거를 다시 확인하려는 분석이다. 커밋된 OOF 예측만 쓴다.
+# 채택 · 기각 근거인 짝지은 비교 4개(CLAHE, TTA 2개, WBF)를 커밋된 OOF 예측만으로 다시 계산하고,
+# 결과 CSV가 저장소에 커밋된 것과 같은지 확인한다 (조합 단위 부트스트랩 1000회, seed 42).
 on:
   push:
     branches: [main]
     paths:
       - scripts/compare_oof.py
+      - scripts/analyze_oof.py
       - src/pilldet/ensemble.py
+      - src/pilldet/evaluate.py
       - .github/workflows/wbf-bootstrap.yml
   workflow_dispatch:
 
 jobs:
-  bootstrap:
+  compare:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - args: e0_baseline e4_clahe
+            out: compare_e0_baseline_vs_e4_clahe.csv
+          - args: e0_baseline e0_baseline_tta
+            out: compare_e0_baseline_vs_e0_baseline_tta.csv
+          - args: e2_yolo11m e2_yolo11m_tta
+            out: compare_e2_yolo11m_vs_e2_yolo11m_tta.csv
+          - args: e0_baseline e0_baseline+e2_yolo11m --wbf-weights 2 1 --wbf-iou 0.6
+            out: compare_e0_baseline_vs_e0_baseline+e2_yolo11m.csv
     steps:
       - uses: actions/checkout@v5
 
@@ -29,29 +43,30 @@ jobs:
           pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
 
-      - name: WBF vs YOLO11s 짝 비교 (조합 부트스트랩 1000회)
+      - name: 짝지은 비교 다시 계산
         env:
           YOLO_CONFIG_DIR: /tmp/ultralytics
           MPLBACKEND: Agg
-        run: python scripts/compare_oof.py e0_baseline e0_baseline+e2_yolo11m --wbf-weights 2 1 --wbf-iou 0.6
+        run: python scripts/compare_oof.py ${{ matrix.args }}
 
-      - name: 결과를 실행 요약과 알림으로 남기기
+      - name: 결과 CSV 1/3 (공개 알림, 줄 1~10)
+        run: python -c "import sys; L=open(sys.argv[1], encoding='utf-8-sig').read().splitlines(); [print('::notice title=csv-0-%02d::' % k + l) for k, l in enumerate(L[0:10])]" "reports/experiments/${{ matrix.out }}"
+
+      - name: 결과 CSV 2/3 (공개 알림, 줄 11~20)
+        run: python -c "import sys; L=open(sys.argv[1], encoding='utf-8-sig').read().splitlines(); [print('::notice title=csv-1-%02d::' % k + l) for k, l in enumerate(L[10:20])]" "reports/experiments/${{ matrix.out }}"
+
+      - name: 결과 CSV 3/3 (공개 알림, 줄 21~30)
+        run: python -c "import sys; L=open(sys.argv[1], encoding='utf-8-sig').read().splitlines(); [print('::notice title=csv-2-%02d::' % k + l) for k, l in enumerate(L[20:30])]" "reports/experiments/${{ matrix.out }}"
+
+      - name: 커밋된 결과와 같은지 확인
         run: |
-          f="reports/experiments/compare_e0_baseline_vs_e0_baseline+e2_yolo11m.csv"
+          f="reports/experiments/${{ matrix.out }}"
           { echo '```csv'; cat "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-          python - "$f" <<'EOF'
-          import sys, pandas as pd
-          df = pd.read_csv(sys.argv[1])
-          cols = [c for c in df.columns if c != "metric_definition"]
-          # GitHub은 단계마다 알림을 10개까지만 보여 준다: 부트스트랩 3행 → OOF 37종 2행 → fold별 37종 mAP75_95 5행 순서로 남긴다
-          boot = df[df["section"].str.startswith("bootstrap")]
-          oof = df[(df["section"] == "OOF") & df["metric"].isin(["learnable_mAP75_95", "learnable_mAP50_95"])]
-          folds = df[df["section"].str.startswith("fold") & (df["metric"] == "learnable_mAP75_95")]
-          for _, r in pd.concat([boot, oof, folds])[cols].iterrows():
-              print("::notice title=wbf-bootstrap::" + " | ".join(f"{c}={r[c]}" for c in cols))
-          EOF
+          git ls-files --error-unmatch "$f"  # 커밋되지 않은 파일이면 실패 (git diff는 추적하지 않는 파일을 비교하지 않는다)
+          git diff --exit-code --stat -- "$f"
 
-      - uses: actions/upload-artifact@v4
+      - if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: wbf-bootstrap
-          path: reports/experiments/compare_e0_baseline_vs_e0_baseline+e2_yolo11m.csv
+          name: ${{ matrix.out }}
+          path: reports/experiments/${{ matrix.out }}

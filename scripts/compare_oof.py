@@ -11,7 +11,7 @@
     python scripts/compare_oof.py e0_baseline e4_clahe
     python scripts/compare_oof.py e0_baseline e0_baseline+e2_yolo11m --wbf-weights 2 1 --wbf-iou 0.6   # WBF 앙상블과 비교
 
-실험 이름을 '+'로 이으면 그 실험들의 OOF를 WBF로 합친 예측을 쓴다 (analyze_oof.py와 같은 방식: 이미지당 상위 100개).
+실험 이름을 '+'로 이으면 그 실험들의 OOF를 WBF로 합친 예측을 쓴다. 두 쪽 모두 이미지당 점수 상위 100개만 평가한다 (analyze_oof.py의 WBF와 같은 조건).
 
 산출물
     reports/experiments/compare_<기준>_vs_<실험>.csv    (지표별 차이, 부트스트랩 구간, fold별 차이)
@@ -53,9 +53,11 @@ def load_side(name: str, root: Path, folds: pd.DataFrame, weights: list[float] |
     """실험 하나의 OOF, 또는 '+'로 이은 여러 실험의 OOF를 WBF로 합친 예측."""
     names = name.split("+")
     if len(names) == 1:
-        return load_oof(name, root, folds)
-    fused = weighted_boxes_fusion([load_oof(n, root, folds) for n in names], weights, iou_thr=iou_thr)
-    return fused.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
+        pred = load_oof(name, root, folds)
+    else:
+        pred = weighted_boxes_fusion([load_oof(n, root, folds) for n in names], weights, iou_thr=iou_thr)
+    # 비교하는 두 쪽을 같은 조건으로: 이미지당 점수 상위 100개 (WBF 쪽만 자르면 조건이 달라진다)
+    return pred.sort_values("score", ascending=False).groupby("file_name", group_keys=False).head(100)
 
 
 def main():
