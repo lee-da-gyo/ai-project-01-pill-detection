@@ -14,13 +14,28 @@
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat-square&logo=opencv&logoColor=white)
 ![pandas](https://img.shields.io/badge/pandas-150458?style=flat-square&logo=pandas&logoColor=white)
 ![Kaggle](https://img.shields.io/badge/Kaggle-Competition-20BEFF?style=flat-square&logo=kaggle&logoColor=white)
-![Status](https://img.shields.io/badge/status-보고서%20완성·제출%20준비-blue?style=flat-square)
+![Status](https://img.shields.io/badge/status-완료-success?style=flat-square)
+![Kaggle public](https://img.shields.io/badge/Kaggle%20public-0.630-20BEFF?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-42%20passed-brightgreen?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
 
 <br>
 
 <img src="reports/figures/13_train_samples.png" width="90%" alt="학습 이미지와 정답 박스">
 
 </div>
+
+<br>
+
+## ⚡ 30초 요약
+
+| | |
+|:---|:---|
+| **문제** | 알약 3~4개가 놓인 사진에서 56종 약의 이름과 위치를 찾는다. 학습 이미지는 232장뿐이고 29종은 박스가 10개 미만이다 |
+| **결과** | **Kaggle public mAP@[0.75:0.95] 0.630** (YOLO11s + 허용 AI Hub 데이터). 대회 데이터만 쓴 YOLO11s + 11m WBF는 0.413 |
+| **핵심 기여** | ① 라벨 오류 15건을 찾아 고치고 전체를 다시 학습 ② 같은 약 조합을 같은 fold에 묶어 검증 누수 차단 ③ WBF 앙상블을 직접 구현하고, 설정을 근사 메타 검증으로 선택 |
+| **배운 점** | 점수 손실의 대부분은 위치가 아니라 **처음 보는 약의 이름**에서 나왔다. 허용된 추가 데이터로 학습한 모델은 대회 데이터만 쓴 모델보다 크게 앞섰다 (0.413 → 0.630). 테스트 정답이 비공개라 원인을 확정하지는 못했다 |
+| **바로 보기** | 📄 [보고서 PDF](docs/report/report.pdf) · ▶ [시연 영상 45초](docs/demo/demo.mp4) · ⚙️ [최고 점수 재현 명령](#9-실행-방법) · ✅ [테스트 로그](reports/logs/pytest.log) |
 
 <br>
 
@@ -76,10 +91,10 @@
 </td>
 <td width="33%" align="center">
 
-### 🎯 0.950
-**최종 후보의 5-Fold OOF mAP@[0.75:0.95] (대회 표기 기반 내부 대리지표)**
+### 🎯 0.630
+**Kaggle public mAP@[0.75:0.95]**
 
-<sub>YOLO11s + YOLO11m WBF · 학습 가능 37종 조건부 진단값<br>(단일 모델 0.938) · Kaggle public 0.413 → 추가 데이터 학습 후 0.630 (보고서 7.2절)</sub>
+<sub>YOLO11s + 허용 AI Hub 조합 데이터 (대회 데이터만 쓴 WBF 0.413)<br>내부 진단: 학습 가능 37종 조건부 5-Fold OOF 0.950 (실제 성능 추정치 아님, 7장)</sub>
 
 </td>
 </tr>
@@ -523,7 +538,7 @@ streamlit run app/demo.py
 사용자 폴더에 쓸 수 없는 환경(CI, 샌드박스)에서는 Ultralytics 설정 폴더를 지정한다: `YOLO_CONFIG_DIR=/tmp/ultralytics python -m pytest tests`
 실행 로그: [`reports/logs/`](reports/logs) · 단위 테스트: [`reports/logs/pytest.log`](reports/logs/pytest.log)
 
-> **재현 조건** – 설치된 pandas · Pillow가 10/30 09:34경(설치 폴더 시각) 3.0.3 · 12.3.0에서 2.3.3 · 11.3.0으로 바뀐 것으로 보이며, 원인은 확인하지 못했다. 산출물 시각 기준으로 e0_baseline fold 0(09:28 완료)과 라벨 수정 전 탐색은 이전 버전, fold 1(09:37 완료)은 교체 시점에 걸쳐 있고, 나머지 5-Fold · 최종 모델 · 제출 · 테스트는 이후 버전이다. fold별 환경을 기록하지 않아 시각으로 추정한 것이다. 두 라이브러리의 차이가 점수에 영향을 줬는지는 재실행으로 검증하지 않았다. `requirements.txt`는 최종 모델을 만든 환경의 버전이다. 새 가상환경(같은 PC, Python 3.14.6, CPU용 PyTorch)에 `requirements.txt`를 설치해 의존성 검사와 단위 테스트 37개, 라벨 감사 재현을 확인했다. 다른 PC와 GPU 학습 재현은 확인하지 않았다. 코드 검사(`python -m ruff check src scripts tests`)는 이 세 폴더만 대상이고, 노트북은 제외한다 (전체 저장소를 검사하면 노트북에서 형식 경고가 나온다).
+> **재현 조건** – 설치된 pandas · Pillow가 10/30 09:34경(설치 폴더 시각) 3.0.3 · 12.3.0에서 2.3.3 · 11.3.0으로 바뀐 것으로 보이며, 원인은 확인하지 못했다. 산출물 시각 기준으로 e0_baseline fold 0(09:28 완료)과 라벨 수정 전 탐색은 이전 버전, fold 1(09:37 완료)은 교체 시점에 걸쳐 있고, 나머지 5-Fold · 최종 모델 · 제출 · 테스트는 이후 버전이다. fold별 환경을 기록하지 않아 시각으로 추정한 것이다. 두 라이브러리의 차이가 점수에 영향을 줬는지는 재실행으로 검증하지 않았다. `requirements.txt`는 최종 모델을 만든 환경의 버전이다. 새 가상환경(같은 PC, Python 3.14.6, CPU용 PyTorch)에 `requirements.txt`를 설치해 의존성 검사와 단위 테스트(확인 당시 37개, 이후 AI Hub·대회 지표 테스트를 더해 현재 42개 케이스), 라벨 감사 재현을 확인했다. 다른 PC와 GPU 학습 재현은 확인하지 않았다. 코드 검사(`python -m ruff check src scripts tests`)는 이 세 폴더만 대상이고, 노트북은 제외한다 (전체 저장소를 검사하면 노트북에서 형식 경고가 나온다).
 
 </details>
 
@@ -549,6 +564,12 @@ streamlit run app/demo.py
 | 📝 [업무일지 PDF](docs/worklog/worklog.pdf) · [원본](docs/worklog) | 매일의 작업 · 고민 · 실수와 교훈 |
 | 📄 [보고서 PDF](docs/report/report.pdf) | 문제 정의 → EDA → 정제 → 검증 → 실험 → 결과 분석 → 시사점 (내려받기) |
 | ✅ [라벨 검수 기록](docs/LABEL_REVIEW.md) | 라벨 수정 15건의 근거 |
+
+<br>
+
+## 라이선스
+
+코드는 [MIT License](LICENSE)를 따른다. 대회 이미지와 라벨, AI Hub 데이터는 이 저장소에 없으며 각 제공처의 이용 조건을 따른다.
 
 <br>
 
