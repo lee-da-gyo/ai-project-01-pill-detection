@@ -90,6 +90,7 @@ def main():
         rows.append({"section": f"bootstrap (조합 {len(combos)}개, {args.n_boot}회)", "metric": m,
                      args.base: None, args.exp: None, "delta": round(float(np.median(d)), 4),
                      "ci95_low": round(float(np.percentile(d, 2.5)), 4), "ci95_high": round(float(np.percentile(d, 97.5)), 4),
+                     # p_improve: 부트스트랩 재표본 중 차이가 0보다 큰 비율. 개선될 확률(사후확률)이 아니다
                      "p_improve": round(float((d > 0).mean()), 3)})
 
     res = pd.DataFrame(rows).assign(metric_definition=METRIC_DEFINITION)

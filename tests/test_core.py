@@ -98,6 +98,32 @@ def test_coco_map_perfect_and_wrong_class():
     assert coco_map(gt.assign(score=1.0), gt)["per_iou"][0.95] == pytest.approx(1.0)
 
 
+def test_coco_map_partial_precision_matches_hand_computed_101_point_ap():
+    # 정답 2개(같은 클래스) 중 하나만 맞히고, 그보다 점수가 높은 배경 오탐이 하나 있다.
+    # 순위: 오탐(0.9) → 정답(0.8) → recall [0, 0.5], precision [0, 0.5], 오른쪽 최댓값으로 보간하면 [0.5, 0.5]
+    # 101점 보간: recall 0.00~0.50의 51점은 0.5, 0.51~1.00의 50점은 0 → AP = 51 × 0.5 / 101
+    gt = pd.DataFrame({"file_name": ["a.png", "a.png"], "category_id": [1, 1], "x": [10, 400], "y": [10, 400],
+                       "w": [100, 100], "h": [100, 100], "img_w": 976, "img_h": 1280})
+    pred = pd.DataFrame({"file_name": ["a.png", "a.png"], "category_id": [1, 1], "x": [700, 10], "y": [700, 10],
+                         "w": [100, 100], "h": [100, 100], "score": [0.9, 0.8]})
+    m = coco_map(pred, gt)
+    expected = 51 * 0.5 / 101
+    assert m["mAP50"] == pytest.approx(expected)
+    assert m["mAP50_95"] == pytest.approx(expected)  # 박스가 정확히 겹쳐 모든 IoU 임계값에서 같다
+    assert m["mAP75_95"] == pytest.approx(expected)
+
+
+def test_coco_map_iou_threshold_counting_for_shifted_box():
+    # 가로로 밀린 박스: 겹침 80 × 100, 합집합 120 × 100 → IoU 2/3.
+    # 0.50 · 0.55 · 0.60 · 0.65에서만 맞으므로 mAP50-95 = 4/10, 대회 대리지표 mAP@[0.75:0.95] = 0
+    gt = pd.DataFrame({"file_name": ["a.png"], "category_id": [1], "x": [100], "y": [100], "w": [100], "h": [100],
+                       "img_w": 976, "img_h": 1280})
+    pred = gt.drop(columns=["img_w", "img_h"]).assign(x=120, score=0.9)
+    m = coco_map(pred, gt)
+    assert m["mAP50_95"] == pytest.approx(0.4)
+    assert m["mAP75_95"] == pytest.approx(0.0)
+
+
 def test_classify_errors_types():
     gt = _gt()
     pred = pd.DataFrame({"file_name": ["a.png", "a.png", "a.png", "a.png", "b.png"],
@@ -215,6 +241,20 @@ def test_wbf_weighted_and_validation():
         weighted_boxes_fusion([_pred(0, 0.9)], weights=[1, 1])
     with pytest.raises(ValueError):
         weighted_boxes_fusion([_pred(0, 0.9), _pred(0, 0.9)], weights=[1, 0])
+
+
+def test_wbf_three_models_hand_computed():
+    # 모델 3개: 두 모델은 같은 알약(x=0, x=6), 한 모델은 멀리 떨어진 오탐(x=500)
+    # 묶음 1: 좌표 = (0·0.8 + 6·0.4) / 1.2 = 2, 점수 = 평균 0.6 × min(3, 2) / 가중치 합 3 = 0.4
+    # 묶음 2: 한 모델만 찾음 → 0.6 × 1 / 3 = 0.2
+    out = weighted_boxes_fusion([_pred(0, 0.8), _pred(6, 0.4), _pred(500, 0.6)]).sort_values("x").reset_index(drop=True)
+    assert out["x"].tolist() == pytest.approx([2.0, 500.0])
+    assert out["score"].tolist() == pytest.approx([0.4, 0.2])
+
+
+def test_wbf_never_merges_boxes_from_different_images():
+    out = weighted_boxes_fusion([_pred(0, 0.9, f="a.png"), _pred(0, 0.9, f="b.png")])
+    assert sorted(out["file_name"]) == ["a.png", "b.png"]
 
 
 def _load_script(name):

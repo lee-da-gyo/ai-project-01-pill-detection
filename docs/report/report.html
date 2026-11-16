@@ -245,7 +245,7 @@ fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 �
   <tr><th>YOLO11s 5-Fold</th><th class="n">fold 0 / 1 / 2 / 3 / 4</th><th class="n">fold 평균</th><th class="n">37종 조건부 OOF</th></tr>
   <tr><td>원본</td><td class="n">0.836 / 0.900 / 0.936 / 0.763 / 0.879</td><td class="n">0.8626</td><td class="n">0.956</td></tr>
   <tr><td>CLAHE</td><td class="n">0.833 / 0.900 / 0.943 / 0.748 / 0.886</td><td class="n">0.8618</td><td class="n">0.962</td></tr>
-  <tr><td>차이</td><td class="n">2개 fold 상승 · 3개 fold 하락</td><td class="n">−0.0008</td><td class="n">+0.005<br>95% 구간 −0.003 ~ +0.018<br>(개선 확률 88%)</td></tr>
+  <tr><td>차이</td><td class="n">2개 fold 상승 · 3개 fold 하락</td><td class="n">−0.0008</td><td class="n">+0.005<br>95% 구간 −0.003 ~ +0.018<br>(부트스트랩 개선 비율 88%)</td></tr>
   <caption>표 6-4. 수정 라벨로 두 실험을 모두 다시 학습한 값 (라벨 수정 전에도 2개↑ 3개↓, 37종 OOF +0.011, 구간 −0.006 ~ +0.027로 같은 결론). 출처: reports/experiments/preprocess_clahe_stats.csv, compare_e0_baseline_vs_e4_clahe.csv</caption>
 </table>
 <p><b>결정: 미채택.</b> fold 단위로는 방향이 엇갈리고(처음 보는 약이 가장 많은 fold 3에서 −0.015), 합친 OOF의 개선도 구간이 0을 포함한다.
@@ -288,12 +288,12 @@ fold 0에서 0.832 ~ 0.834로 YOLO 단독(0.835)을 넘지 못했다. YOLO가 �
 <p><b>TTA (R14)</b> – 다시 학습하지 않고, 이미 학습한 5-Fold 모델로 검증 예측만 TTA(좌우 뒤집기 + 0.83 · 0.67배 축소, Ultralytics 기본)로 다시 만들어
 기준 예측과 짝지어 비교했다. fold k 모델은 fold k 이미지만 예측하므로 학습 때와 같은 누수 없는 OOF다 (<code>scripts/predict_oof.py</code>).</p>
 <table>
-  <tr><th>37종 조건부 OOF</th><th class="n">TTA 없음</th><th class="n">TTA</th><th class="n">차이 (조합 부트스트랩 95% 구간)</th><th class="n">fold별</th><th class="n">개선 확률</th></tr>
+  <tr><th>37종 조건부 OOF</th><th class="n">TTA 없음</th><th class="n">TTA</th><th class="n">차이 (조합 부트스트랩 95% 구간)</th><th class="n">fold별</th><th class="n">부트스트랩 개선 비율</th></tr>
   <tr><td>YOLO11s</td><td class="n">0.956</td><td class="n">0.952</td><td class="n">−0.004 (−0.011 ~ +0.002)</td><td class="n">3개↑ 2개↓</td><td class="n">9%</td></tr>
   <tr><td>YOLO11m</td><td class="n">0.941</td><td class="n">0.936</td><td class="n">−0.005 (−0.010 ~ +0.002)</td><td class="n">1개↑ 4개↓</td><td class="n">11%</td></tr>
   <caption>표 6-7. 출처: reports/experiments/compare_e0_baseline_vs_e0_baseline_tta.csv, compare_e2_yolo11m_vs_e2_yolo11m_tta.csv</caption>
 </table>
-<p><b>결정: 미채택.</b> 두 모델 모두 합친 OOF가 내려갔고 개선 확률은 10% 안팎이다. 대리지표로 다시 봐도 같았다 (37종 OOF 11s −0.007, 구간 −0.015 ~ +0.002, 3개 fold 상승 · 2개 하락, 개선 확률 7% / 11m −0.012, 구간 −0.018 ~ 0.000, 5개 fold 모두 하락, 개선 확률 3%). 고정된 카메라로 비슷한 크기의 알약을 찍은 데이터라
+<p><b>결정: 미채택.</b> 두 모델 모두 합친 OOF가 내려갔고 부트스트랩 개선 비율은 10% 안팎이다. 대리지표로 다시 봐도 같았다 (37종 OOF 11s −0.007, 구간 −0.015 ~ +0.002, 3개 fold 상승 · 2개 하락, 부트스트랩 개선 비율 7% / 11m −0.012, 구간 −0.018 ~ 0.000, 5개 fold 모두 하락, 부트스트랩 개선 비율 3%). 고정된 카메라로 비슷한 크기의 알약을 찍은 데이터라
 축소 변환이 학습 분포에 없는 크기를 만들고, 합쳐진 박스가 가장 엄격한 IoU에서 정밀도를 잃었을 수 있다 (확인하지 않은 가설).</p>
 
 <!-- ================= 7. 최종 모델 ================= -->
@@ -321,7 +321,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td>final_11s_11m_wbf</td><td>YOLO11s + YOLO11m WBF (2:1, IoU 0.7)</td><td class="n">0.950</td><td class="n">0.41410</td></tr>
   <tr><td>final_yolo11s_single</td><td>YOLO11s 단일</td><td class="n">0.938</td><td class="n">0.40954</td></tr>
   <tr><td>final_yolo11m_single</td><td>YOLO11m 단일</td><td class="n">0.922</td><td class="n">0.39427</td></tr>
-  <tr class="best"><td>final_yolo11s_aihub</td><td>YOLO11s 단일 + 허용 AI Hub 조합 데이터 (후속 실험, 28 에포크)</td><td class="n">–</td><td class="n">0.63017</td></tr>
+  <tr class="best"><td>a2_aihub_full_yolo11s</td><td>YOLO11s 단일 + 허용 AI Hub 조합 데이터 (후속 실험, 28 에포크)</td><td class="n">–</td><td class="n">0.63017</td></tr>
   <caption>표 7-2. 테스트 842장 모두 예측 있음. 점수 0.5 이상 박스가 이미지당 3.6~3.7개로 학습 데이터(3~4개)와 일치.</caption>
 </table>
 <p><b>순위는 맞았고, 절댓값은 크게 어긋났다.</b> 앙상블 &gt; 11s &gt; 11m 순서는 OOF와 같다. IoU 0.6과 0.7은 OOF(0.0007)와 public(0.0006) 모두 차이가 작고 방향은 반대라 구분되지 않는다. 미리 정한 대로 public 점수를 보고 주력을 바꾸지 않았다.</p>
@@ -454,7 +454,7 @@ fold 학습은 100 에포크 학습률 스케줄인데 최종 학습은 80 에�
   <tr><td><code>src/pilldet/</code> (17개 모듈)</td><td>경로 탐색, 라벨 정제, 조합 단위 분할, YOLO/COCO 변환, 학습, 예측, COCO 평가, WBF 직접 구현, 전처리, 제출 파일 검사</td></tr>
   <tr><td><code>scripts/</code></td><td>데이터 준비, 실험 실행(<code>--fold</code>, <code>--skip-train</code>), 5-Fold 집계, OOF 분석, 오류 분석, 짝지은 비교, 에포크 민감도, 제출 생성</td></tr>
   <tr><td><code>configs/</code></td><td>실험 하나 = 설정 파일 하나. 베이스라인에서 값 하나만 바꾼 파일들</td></tr>
-  <tr><td><code>tests/</code></td><td>단위 테스트 함수 40개 (매개변수 포함 42개 케이스): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
+  <tr><td><code>tests/</code></td><td>단위 테스트 함수 44개 (매개변수 포함 46개 케이스, GitHub Actions CI): 좌표 변환, 분할 누수, 평가, 실패 유형 분류, WBF, 제출 형식, 전처리 일치, 라벨 검수 결정 적용 · 형식 · 의미 검사, 감사 출처 해시, 콘솔 인코딩, 검사 로직</td></tr>
 </table>
 <h3>9.1 "틀린 숫자가 조용히 나오지 않게" 하는 자동 검사</h3>
 <ul>
@@ -576,7 +576,7 @@ python scripts/make_submission.py --runs final_yolo11s final_yolo11m --weights 2
   <tr><td class="n">R5</td><td>파일 구조·메타데이터 확인</td><td>파일명 ↔ 라벨 대조, 무결성 검사, 라벨 감사 A~E, 라벨 오류 15건 수정 (보고서 3장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R6</td><td>전처리</td><td>해상도 640/960/1280 (6.1절), CLAHE 5-Fold 전후 비교 (6.5절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R7</td><td>데이터 증강</td><td>상하 뒤집기·밝기·Copy-Paste 전후 비교 (6.1·6.4절)</td><td class="n">완료</td></tr>
-  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 40개 (9장)</td><td class="n">완료</td></tr>
+  <tr><td class="n">R8</td><td>파이프라인 자동화</td><td><code>src/pilldet</code> 17개 모듈, 스크립트, 테스트 함수 44개 (9장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R9</td><td>VGG·ResNet·YOLO 등 모델</td><td>YOLO11n·s·m·YOLO26s, VGG16·ResNet50·EfficientNet-B0 (6.1·6.3절)</td><td class="n">완료</td></tr>
   <tr><td class="n">R10</td><td>성능 지표 비교</td><td>검출 mAP50/50-95, 분류 정확도·정밀도·재현율·F1·log loss (6장)</td><td class="n">완료</td></tr>
   <tr><td class="n">R11</td><td>하이퍼파라미터 튜닝</td><td>학습률 3수준, 해상도, 모델 크기, 에포크 민감도 (6.7·7.1절). 배치 크기는 미실험</td><td class="n">완료</td></tr>

@@ -8,20 +8,20 @@
 
 <br>
 
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)
 ![Ultralytics](https://img.shields.io/badge/YOLO-Ultralytics-111F68?style=flat-square)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=flat-square&logo=opencv&logoColor=white)
 ![pandas](https://img.shields.io/badge/pandas-150458?style=flat-square&logo=pandas&logoColor=white)
 ![Kaggle](https://img.shields.io/badge/Kaggle-Competition-20BEFF?style=flat-square&logo=kaggle&logoColor=white)
-![Status](https://img.shields.io/badge/status-완료-success?style=flat-square)
+![Status](https://img.shields.io/badge/프로젝트-종료%20(2026.11.06)-success?style=flat-square)
 ![Kaggle public](https://img.shields.io/badge/Kaggle%20public-0.630-20BEFF?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-42%20passed-brightgreen?style=flat-square)
+[![CI](https://github.com/lee-da-gyo/ai-project-01-pill-detection/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-da-gyo/ai-project-01-pill-detection/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
 
 <br>
 
-<img src="reports/figures/13_train_samples.png" width="90%" alt="학습 이미지와 정답 박스">
+<img src="reports/figures/13_train_samples_hero.jpg" width="90%" alt="학습 이미지와 정답 박스">
 
 </div>
 
@@ -35,7 +35,9 @@
 | **결과** | **Kaggle public mAP@[0.75:0.95] 0.630** (YOLO11s + 허용 AI Hub 데이터). 대회 데이터만 쓴 YOLO11s + 11m WBF는 0.413 |
 | **핵심 기여** | ① 라벨 오류 15건을 찾아 고치고 전체를 다시 학습 ② 같은 약 조합을 같은 fold에 묶어 검증 누수 차단 ③ WBF 앙상블을 직접 구현하고, 설정을 근사 메타 검증으로 선택 |
 | **배운 점** | 점수 손실의 대부분은 위치가 아니라 **처음 보는 약의 이름**에서 나왔다. 허용된 추가 데이터로 학습한 모델은 대회 데이터만 쓴 모델보다 크게 앞섰다 (0.413 → 0.630). 테스트 정답이 비공개라 원인을 확정하지는 못했다 |
-| **바로 보기** | 📄 [보고서 PDF](docs/report/report.pdf) · ▶ [시연 영상 45초](docs/demo/demo.mp4) · ⚙️ [최고 점수 재현 명령](#9-실행-방법) · ✅ [테스트 로그](reports/logs/pytest.log) |
+| **바로 보기** | 📄 [보고서 PDF](docs/report/report.pdf) · ▶ [시연 영상 45초](docs/demo/demo.mp4) · ⚙️ [최고 점수 재현 명령](#9-실행-방법) · ✅ [CI 테스트](https://github.com/lee-da-gyo/ai-project-01-pill-detection/actions/workflows/ci.yml) |
+
+<p align="center"><img src="docs/demo/demo.gif" width="80%" alt="데모 앱 시연: 사진을 고르면 알약마다 이름 · 위치 · 신뢰도를 표시"><br><sub>데모 앱 시연 (45초 영상을 GIF로 줄임 · 음성 없음)</sub></p>
 
 <br>
 
@@ -83,10 +85,10 @@
 </td>
 <td width="33%" align="center">
 
-### 🛡️ 0건
-**같은 조합의 검증 누수**
+### 🛡️ 114개 조합
+**단위로 나눈 5-Fold 검증**
 
-<sub>같은 조합의 다른 각도 사진을<br>조합 단위 K-Fold로 분리</sub>
+<sub>같은 약 조합을 각도만 바꿔 찍은 사진이<br>학습과 검증에 나뉘지 않게 막아 누수 0건</sub>
 
 </td>
 <td width="33%" align="center">
@@ -224,7 +226,7 @@ flowchart TB
 | 3 | 46 | 22 | 153 | 7 |
 | 4 | 47 | 24 | 159 | 3 |
 
-<sub>"학습에 없는 클래스"는 한 조합에만 등장하는 17종 때문에 생긴다. 새로운 조합에 대한 일반화 성능을 정직하게 재는 설정이다.</sub>
+<sub>"학습에 없는 클래스"는 한 fold에만 있는 19종 때문에 생긴다 (17종은 조합 하나에만 나오고, 2종은 여러 조합에 나오지만 모두 같은 fold에 들어갔다). 새로운 조합에 대한 일반화 성능을 정직하게 재는 설정이다.</sub>
 
 > **한계와 대응** – 층화 기준이 "이미지의 가장 희귀한 클래스 하나"라서 다중 라벨을 완전히 반영하지 못하고, fold마다 처음 보는 클래스 수가 1~7개로 다르다.
 > 이미 진행한 실험과의 비교를 유지하려고 분할은 바꾸지 않았다. 대신 fold 하나의 결과로 결론 내리지 않고, 최종 후보는 **5-Fold 평균·표준편차**로 판단한다.
@@ -234,179 +236,60 @@ flowchart TB
 
 ## 7. 모델링 및 실험
 
-📓 [`notebooks/03_baseline.ipynb`](notebooks/03_baseline.ipynb) · 📄 [`reports/experiments.csv`](reports/experiments.csv) · ⚙️ [`configs/`](configs)
+📓 [`notebooks/03_baseline.ipynb`](notebooks/03_baseline.ipynb) · 📄 [`reports/experiments.csv`](reports/experiments.csv) · ⚙️ [`configs/`](configs) · 🔬 **[실험 기록 전체 (표 · 그림 · 통계 검정)](docs/EXPERIMENTS.md)**
 
-> **한 번에 한 가지만 바꿔** 점수 변화의 원인을 설명할 수 있게 한다.
-> ⚠️ 아래 fold 0 탐색(E0~E3, 분류기, 2단계, Copy-Paste)은 오류 분석에서 원본 라벨 오류 4장을 찾기 **전** 기록이다. 0.01 이상의 차이만 결론에 썼고,
-> 라벨 수정 뒤 다시 학습한 5-Fold 비교(아래 "5-Fold 교차검증"부터)와 직접 비교하지 않는다. 수정 후 E0 fold 0은 0.836이다.
-> 실험 하나 = 설정 파일 하나. `python scripts/run_experiment.py --config configs/<실험>.yaml` 한 줄로 학습 → 평가 → 제출 파일 → 기록까지 실행된다.
+> **한 번에 한 가지만 바꿔** 점수 변화의 원인을 설명할 수 있게 한다. 실험 하나 = 설정 파일 하나이고,
+> `python scripts/run_experiment.py --config configs/<실험>.yaml` 한 줄로 학습 → 평가 → 제출 파일 → 기록까지 실행된다.
+> 채택 여부를 가르는 기준은 실행 전에 설정 파일에 적어 두었다 (예: fold 0에서 +0.005 이상일 때만 5-Fold로 확인).
 
-| ID | 변경 사항 | val mAP50 | **val mAP50-95** | (보조) 학습한 약만 | Kaggle | 학습 시간 |
-|:---:|:---|:---:|:---:|:---:|:---:|:---:|
-| E0 | 베이스라인: YOLO11s · 640px · 기본 증강 | 0.847 | 0.835 | 0.985 | – | 5.7분 |
-| E1 | 해상도 960px | 0.824 | 0.811 | 0.955 | – | 11.6분 |
-| E1 | 해상도 1280px | 0.837 | 0.830 | 0.978 | – | 41.3분 |
-| E2 | 모델 크기 YOLO11n | 0.842 | 0.823 | 0.970 | – | 6.3분 |
-| E2 | 모델 크기 **YOLO11m** | 0.847 | **0.839** | 0.989 | – | 30.8분* |
-| E2 | 최신 구조 YOLO26s | 0.828 | 0.810 | 0.955 | – | 4.3분 |
-| E3 | 상하 뒤집기 증강 | 0.847 | 0.833 | 0.981 | – | 5.3분 |
-| E3 | 밝기 증강 강화 (hsv_v 0.4 → 0.6) | 0.847 | 0.837 | 0.986 | – | 5.6분 |
+### 결정 요약
 
-<sub>* YOLO11m은 다른 학습과 GPU를 함께 쓰던 구간이 있어 시간이 부풀려졌다. 해상도 실험은 VRAM 때문에 batch를 줄였지만 Ultralytics가 nbs=64로 기울기를 누적해 유효 배치는 같다.</sub>
+| 질문 | 비교 방법 | 결과 (mAP50-95, 37종 OOF는 조건부 진단값) | 결정 |
+|:---|:---|:---|:---|
+| 모델 크기 · 구조 | fold 0, YOLO11n · s · m · YOLO26s | 11m 0.839 · 11s 0.835 · 11n 0.823 · 26s 0.810 | 11s · 11m을 5-Fold로 다시 비교 |
+| 단일 모델 vs 앙상블 | 5-Fold OOF (37종) | 11s 0.956 · 11m 0.941 · **WBF 0.964** | **WBF 2:1, IoU 0.6** (근사 메타 검증 5번 모두 2:1) |
+| 입력 해상도 | fold 0, 640 · 960 · 1280px | 0.835 · 0.811 · 0.830 | 640 유지 |
+| 색 보정 (CLAHE) | 5-Fold + 조합 부트스트랩 | fold 2개 상승 · 3개 하락, OOF +0.005 (95% 구간 −0.003 ~ +0.018) | 미채택 |
+| TTA | 5-Fold OOF 짝 비교 | 11s −0.004 · 11m −0.005 | 미채택 |
+| Copy-Paste 합성 400장 | fold 0 | −0.012 | 이 설정만 기각 |
+| 2단계 (검출 + 분류기) | fold 0, 분류기 3종 5-Fold 비교 후 | −0.002 | 미채택 (분류기는 EfficientNet-B0이 F1 0.994로 최고) |
+| 학습률 3배 · 0.3배 | fold 0 | +0.0025 · −0.0087 | auto 유지 (사전 기준 +0.005 미달) |
+| **허용 추가 데이터 (AI Hub)** | Kaggle public, YOLO11s 단일 | 0.40954 → **0.63017** | **최고 점수 제출** ↓ |
 
-**중간 해석** – 해상도를 키우거나 최신 구조(YOLO26)로 바꿔도 좋아지지 않았고, 모델 크기는 n < s < m 순으로 조금씩 좋아졌다.
-증강 두 가지는 E0과 ±0.002 차이라 효과를 판단할 수 없다. fold 0 하나(독립 조합 23개)로는 0.005 이하의 차이를 구분할 수 없으므로,
-**최종 후보(YOLO11s, YOLO11m)는 5-Fold OOF(232장 전체를 한 번씩 검증)로 다시 비교**한다 → [`scripts/summarize_cv.py`](scripts/summarize_cv.py)
+<sub>fold 0 탐색 일부는 라벨 오류 4장을 고치기 전 기록이라 라벨 수정 뒤 5-Fold 결과와 직접 비교하지 않는다. 자세한 조건과 그림은 [실험 기록 전체](docs/EXPERIMENTS.md).</sub>
 
-<sub>**주 지표는 val mAP50-95**다. val = 조합 단위 fold 0 (47장, 독립 조합 23개)이라 0.01~0.02 차이는 우연일 수 있어, 최종 후보는 5-Fold로 다시 확인한다.
-"(보조) 학습한 약만"은 학습 fold에 있는 클래스만으로 다시 평가한 **조건부 진단 지표**다. 가장 어려운 "처음 보는 약"을 빼서 낙관적이므로 모델 선택에는 쓰지 않고, 오류가 어디서 오는지 나눠 보는 데만 쓴다.</sub>
+### 대표 점수 0.630: 허용 추가 데이터(AI Hub) 학습
 
-### 베이스라인에서 얻은 핵심 발견
-<table>
-<tr>
-<td width="50%"><img src="reports/figures/e0_predictions_val.png" alt="정답 vs 예측"></td>
-<td width="50%"><img src="reports/figures/e0_per_class_ap.png" alt="클래스별 AP"></td>
-</tr>
-<tr>
-<td align="center"><sub>위: 정답 · 아래: 예측. 위치는 모두 맞고, 처음 보는 약을 비슷한 약으로 예측</sub></td>
-<td align="center"><sub>빨강 = 학습에 없는 약. 점수 손실의 전부가 여기서 나온다</sub></td>
-</tr>
-</table>
+Kaggle 점수(0.413)가 내부 진단값보다 크게 낮았고, 대회 안내를 다시 읽어 **허용된 외부 데이터**(AI Hub `경구약제조합 5000종`)를 추가로 학습했다.
+금지 파일 `TL_2_조합.zip` · `TS_2_조합.zip`은 열지 않고 건너뛴다 ([`prepare_aihub.py`](scripts/prepare_aihub.py), [로그](reports/logs/prepare_aihub.log)).
 
-| 발견 | 근거 | 다음 결정 |
-|:---|:---|:---|
-| 오류는 **위치가 아니라 처음 보는 약의 이름** | 학습한 약 AP 0.985 / 처음 보는 약 5종 AP 0.000 | 위치(알약)와 이름(약 종류)을 나눠 푸는 **2단계 모델** 설계 |
-| 처음 보는 약을 **비슷한 약으로 확신** | 다보타민큐정 → 트루비타정 (0.96) | 희귀 약 보강: **Copy-Paste 합성** (E3) |
-| 이미지당 상위 4개 제한은 **오히려 손해** | mAP50-95 0.835 → 0.822 | 가설 기각. 제출에는 모든 예측 유지 |
-| 두 평가 방식이 일치 | Ultralytics 0.834 vs 직접 구현 COCO 0.835 | 직접 구현한 평가로 앙상블·2단계 모델까지 같은 기준 비교 |
-
-### 분류기 비교: VGG16 · ResNet50 · EfficientNet-B0 (5-Fold)
-2단계 모델의 약 이름 판별기 후보를 **같은 조건(같은 증강·학습 설정)에서 구조만 바꿔** 5-Fold로 비교했다.
-정답 박스 crop · 학습한 약만 · 같은 fold로 최고 에포크를 골라 평가한 값이라, 실제 검출 성능이 아니라 **낙관적인 분류기 구성요소 진단값**이다.
-
-| 분류기 | 정확도 | 정밀도 (macro) | 재현율 (macro) | **F1 (macro)** | log loss | 학습 시간 | 파라미터 |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **EfficientNet-B0** | 0.993 ± 0.008 | **0.994** | **0.995** | **0.994 ± 0.006** | 0.166 | **2.1분** | **4.1M** |
-| VGG16 | 0.993 ± 0.008 | 0.990 | 0.989 | 0.989 ± 0.015 | **0.153** | 5.5분 | 134.5M |
-| ResNet50 | 0.992 ± 0.009 | 0.987 | 0.988 | 0.987 ± 0.015 | 0.217 | 2.1분 | 23.6M |
-
-→ **EfficientNet-B0 선택**: F1이 가장 높고, VGG16의 1/33 파라미터로 2.6배 빠르다. (log loss는 VGG16이 가장 낮아 확신도는 근소하게 높다)
-
-### 효과가 없었던 시도 (음성 결과)
-| 시도 | fold 0 mAP50-95 | E0 대비 | 해석 |
-|:---|:---:|:---:|:---|
-| Copy-Paste 합성 400장 추가 | 0.823 | −0.012 | **이 설정(합성 400장)만 기각.** 합성이 원본(185장)의 2배를 넘어 합성 특유의 경계·배경 차이를 학습했을 가능성. 비율을 낮춘 재실험 후보 |
-| 2단계 (E0 검출 박스 + 분류기, 혼합 비율 0 / 0.3 / 0.5) | 0.832 ~ 0.834 | −0.002 | fold 0에서 YOLO 단독이 이미 학습한 약을 IoU 0.5에서 거의 다 맞혀 분류기가 더할 여지가 없었다. 전용 1-클래스 검출기와의 조합은 아직 미검증 |
-| 1-클래스 검출기 (위치만) | 위치 0.939 | – | 56-클래스 YOLO의 위치 성능(클래스 무시 평가 0.962)보다 낮다 → 클래스 정보가 위치 학습에도 도움 |
-
-**중간 결론** – fold 0 검증에는 학습 fold에 없는 약이 5종 있어, 이 분할에서 얻을 수 있는 mAP50의 최댓값은 28/33 = **0.848**이다.
-강한 후보들(E0 · YOLO11m · 밝기 증강 · 상하 뒤집기)의 mAP50이 0.847로 **이 분할 상한에 거의 도달**했다.
-이는 fold 분할이 만든 open-set 상한일 뿐, 56종을 모두 학습하는 최종 모델이나 Kaggle 점수의 상한은 아니다.
-따라서 fold 0 하나로 모델을 고르지 않고 5-Fold OOF로 다시 비교하며, 남은 개선 여지는 박스 정밀도(앙상블)와 학습 데이터 전체 활용이다.
-5개 모델 WBF 앙상블은 mAP50-95 **0.841**로 단일 최고(0.839)보다 높았다 ([`wbf_fold0.csv`](reports/experiments/wbf_fold0.csv)). 다만 같은 fold에서 조합을 고르고 평가했으므로 5-Fold에서 다시 확인한다.
-
-> **평가 지표** – 대회 페이지의 표기는 **mAP@[0.75:0.95]**다. 이것을 COCO 관례(0.05 간격 5개, [`configs/evaluation.yaml`](configs/evaluation.yaml))로 해석한 내부 대리지표(이하 대리지표)를 계산하며, 주최 측 평가 코드 또는 공식 점수와의 동등성은 미확인이다. 대회 페이지를 후반에 확인해, 실험 대부분은 COCO 표준 mAP50-95로 비교했다. 확인한 뒤 저장된 예측으로 최종 결정을 대리지표로 다시 평가했고 (WBF IoU 0.7 → 0.6, 차이 0.0007이라 주최 측 해석이 다르면 달라질 수 있다), 37종 조건부 OOF는 WBF 0.950 · YOLO11s 0.938 · YOLO11m 0.922다.
-
-### 5-Fold 교차검증: 최종 후보 비교 (232장 OOF)
-| 모델 | fold별 mAP50-95 (0 / 1 / 2 / 3 / 4) | fold 평균 ± 표준편차 | OOF 전체 (56종) | OOF 37종 (조건부) | fold별 best epoch |
-|:---|:---:|:---:|:---:|:---:|:---:|
-| YOLO11s | 0.836 / 0.900 / 0.936 / 0.763 / 0.879 | 0.863 ± 0.067 | 0.634 | 0.956 | 80 / 81 / 86 / 26 / 59 |
-| YOLO11m | 0.837 / 0.900 / 0.924 / 0.732 / 0.884 | 0.855 ± 0.076 | 0.622 | 0.941 | 80 / 90 / 50 / 44 / 80 |
-| **WBF 11s + 11m** (2:1, IoU 0.6) | – | – | **0.638** | **0.964** | – |
-
-<sub>수정된 라벨로 다시 학습한 값이다. 수정 전(0.941 / 0.936 / 0.954)과의 차이는 평가 정답도 함께 바뀌었으므로 "정제 효과"로 해석하지 않는다.</sub>
-
-<sub>**OOF 37종 (조건부)** = 2개 이상 fold에 있어 검증될 때 학습에도 있는 37종만으로 다시 잰 값. 한 fold에만 있는 희귀 19종을 정답·예측 양쪽에서 뺐으므로
-**모델·앙상블을 같은 조건에서 비교하는 진단값이며, 56종 Kaggle 점수의 추정치가 아니다.**
-재현: [`summarize_cv.py`](scripts/summarize_cv.py) → [`cv_summary.csv`](reports/cv_summary.csv) · [`analyze_oof.py`](scripts/analyze_oof.py) → [`oof_analysis.csv`](reports/experiments/oof_analysis.csv), [`wbf_oof.csv`](reports/experiments/wbf_oof.csv), [`wbf_meta_validation.csv`](reports/experiments/wbf_meta_validation.csv)</sub>
-
-| 발견 | 근거 | 결정 |
-|:---|:---|:---|
-| OOF 전체(0.63)가 fold 평균(0.86)보다 크게 낮은 이유는 **분할 구조** | 56종 중 **19종이 한 fold에만** 있어 검증될 때마다 학습에 없다 → OOF 상한 37/56 = **0.661**. 두 모델 모두 상한의 94~96% | 모델 비교는 같은 조건의 37종 OOF로 한다. 최종 모델은 56종을 모두 학습하지만, 희귀 19종의 실제 성능은 이 검증으로 잴 수 없다 |
-| fold 간 편차가 크다 (0.76 ~ 0.94) | 처음 보는 약 수와 점수 순위가 정확히 반대: fold 2는 1종(0.936), fold 1·4는 3종(0.900·0.879), fold 0은 5종(0.836), **fold 3은 7종(0.763)** | fold 하나의 0.005 차이로 결론 내리지 않은 판단이 옳았다 |
-| 단일 모델은 YOLO11s가 낫다 | fold 평균 +0.007, 37종 OOF +0.015 모두 11s (라벨 수정 전에는 방향이 엇갈렸다) | 단일 모델이면 더 빠른 11s. 합치면 더 좋아진다 ↓ |
-| **두 모델의 WBF가 단일 최고보다 높다** | 37종 OOF 0.956 → **0.964 (+0.008)**. 같은 OOF에서 12개 설정 중 최댓값을 고르면 낙관적이므로, **fold 하나를 보류하고 나머지 4개 fold로 설정을 고르는 근사 메타 검증**을 5번 했다 → **가중치는 5번 모두 2:1**이었다. 대리지표 mAP@[0.75:0.95]로 평가하면 IoU는 0.6이 3번 · 0.7이 2번 뽑혔고 전체 OOF도 0.6이 근소하게 높아(0.9502 vs 0.9495) 0.6을 택했다. 차이가 작아 규칙을 따른 선택이다. 보류 예측 합산 0.949는 독립 성능 추정이 아니라 안정성 점검값이다 ([`wbf_meta_validation.csv`](reports/experiments/wbf_meta_validation.csv)). 단, 설정을 고를 때 쓴 다른 fold의 모델은 보류 fold를 학습에 포함했으므로 완전한 비편향 추정은 아니다. 엄밀한 nested CV는 보류 fold를 뺀 4개 fold 안에서 모델을 다시 학습해야 해 저장된 OOF만으로는 할 수 없다 | 최종 제출 = 11s + 11m WBF (2:1, IoU 0.6). 라벨 수정 전에는 같은 절차가 1:1을 골랐다 – 절차를 고정하고 결과를 따랐다 |
-
-**전체 데이터 학습 에포크 (휴리스틱)** – 검증 없이 232장 전체로 학습하므로 조기 종료 기준이 없다. fold별 best epoch의 **중앙값**(11s 80, 11m 80. 라벨 수정 전 50 · 83)을 쓰고 마지막 가중치(last.pt)를 제출한다.
-데이터가 fold 학습보다 25% 많고 학습률 스케줄이 총 에포크에 묶여 있어 최적이라는 보장은 없다. 대신 fold별 학습 기록으로 민감도를 확인했다 ([`epoch_sensitivity.py`](scripts/epoch_sensitivity.py) → [`epoch_sensitivity.csv`](reports/experiments/epoch_sensitivity.csv)).
-
-| 고정 에포크 후보 | YOLO11s: 최고점 대비 평균 손해 | YOLO11m: 최고점 대비 평균 손해 |
-|:---|:---:|:---:|
-| P25 (59 / 50) | 0.006* | 0.011 |
-| **중앙값 (80 / 80)** | **0.003*** | **0.001*** |
-| P75 (81 / 80) | 0.004* | 0.001* |
-
-<sub>* 조기 종료로 그 에포크까지 학습하지 않은 fold(주로 처음 보는 약이 7종인 fold 3)는 빠져 유리하게 치우친다.
-→ 중앙값의 평균 손해는 0.003 이하지만 **80 에포크까지 학습한 4개 fold에서만 잰 참고값**이다. 11s · 11m 모두 fold 3이 26~44 에포크에서 최고였다가 조기 종료되어 빠졌고,
-fold 학습(100 에포크 스케줄)과 최종 학습(80 에포크 스케줄)은 학습률 감소 시점이 달라 평탄성을 입증하지 않는다. 80 에포크는 최적값이 아니라 중앙값 휴리스틱으로만 채택했다.</sub>
-
-### 색 보정 전처리: CLAHE 전후 비교 (5-Fold)
-EDA에서 Test가 Train보다 어둡고 대비가 컸다. 이미지마다 국소 대비를 평탄화하는 CLAHE로 이 차이를 줄일 수 있는지 YOLO11s 5-Fold에서 **전처리 하나만 바꿔** 비교했다.
-알약 색은 클래스를 가르는 단서라 LAB 밝기 채널에만 적용했고, 설정값은 검증 점수로 고르지 않고 OpenCV 기본값(clip 2.0, tile 8×8)으로 고정했다. 학습·검증·테스트 모두 같은 함수를 거친다.
-
-<img src="reports/figures/19_clahe_before_after.png" width="70%" alt="CLAHE 전후">
-
-| 측정 | 원본 | CLAHE | 해석 |
-|:---|:---:|:---:|:---|
-| Test − Train 밝기 차이 | −5.55 | **−3.25** | 밝기 차이는 40% 줄었다 |
-| Test − Train 대비 차이 | +2.88 | +2.98 | 대비 차이는 그대로 (둘 다 커져서) |
-| fold별 mAP50-95 (0 / 1 / 2 / 3 / 4) | 0.836 / 0.900 / 0.936 / 0.763 / 0.879 | 0.833 / 0.900 / 0.943 / 0.748 / 0.886 | **2개 fold 상승, 3개 fold 하락** |
-| fold 평균 | 0.8626 | 0.8618 | −0.0008 |
-| OOF 37종 (조건부) | 0.956 | 0.962 | +0.005, 조합 단위 부트스트랩 95% 구간 **−0.003 ~ +0.018** (개선 확률 88%) |
-
-<sub>수정 라벨로 두 실험을 모두 다시 학습한 값이다. 라벨 수정 전에도 2개 fold 상승 · 3개 하락, 37종 OOF +0.011(구간 −0.006 ~ +0.027)로 결론이 같았다.</sub>
-
-<sub>부트스트랩: 같은 약 묶음을 여러 각도로 찍은 이미지는 서로 독립이 아니므로, 분할과 같은 단위인 조합 114개를 복원 추출(1000회)해 두 실험의 차이를 짝지어 계산했다.
-재현: [`make_preprocessed.py`](scripts/make_preprocessed.py) → [`preprocess_clahe_stats.csv`](reports/experiments/preprocess_clahe_stats.csv) · [`compare_oof.py`](scripts/compare_oof.py) → [`compare_e0_baseline_vs_e4_clahe.csv`](reports/experiments/compare_e0_baseline_vs_e4_clahe.csv)</sub>
-
-→ **채택하지 않는다.** fold 단위로는 방향이 엇갈리고, 합친 OOF의 개선도 구간이 0을 포함한다.
-합친 OOF만 오른 것은 5개 fold 모델의 예측을 한 순위로 섞어 평가하는 방식이라, fold 안의 검출 성능 외에 모델 간 점수 분포 차이도 함께 반영되기 때문일 수 있다 (확인하지 않은 가설).
-그림에서 보듯 CLAHE는 배경 질감을 키우고 알약 둘레에 어두운 테두리를 만든다. 밝기 차이는 이미 학습 중 HSV 증강이 다루고 있어 전처리로 얻을 몫이 작았던 것으로 본다.
-
-### 희귀 약 보강: Copy-Paste 합성
-<img src="reports/figures/copy_paste_samples.png" width="100%" alt="Copy-Paste 합성">
-<p align="center"><sub>노란 박스 = 다른 사진에서 오려 붙인 알약. 희귀할수록 자주 뽑고(확률 ∝ 1/√빈도), 90° 회전·뒤집기·크기 ±10%. fold별로 학습 이미지만 사용해 누수 없음</sub></p>
-
-### 학습률 · TTA
-
-**학습률 (R11)** – `optimizer=auto`가 실제로 고른 값(AdamW, lr0 0.000167)을 기준으로 학습률 하나만 3배 · 0.3배로 바꿔 fold 0에서 비교했다.
-판단 규칙은 실행 전에 설정 파일에 적어 두었다: *E0보다 0.005 이상 좋을 때만 5-Fold로 확인한다.*
-
-| 학습률 | fold 0 mAP50-95 | E0 대비 | 판단 |
-|:---|:---:|:---:|:---|
-| 0.000167 (auto, E0) | 0.8356 | – | 기준 |
-| 0.0005 (3배) | 0.8381 | +0.0025 | 기준(+0.005) 미달 → 5-Fold 생략 |
-| 0.00005 (0.3배) | 0.8269 | −0.0087 | 하락 |
-
-→ auto 값을 유지한다. fold 하나(독립 조합 23개)로는 0.005 이하의 차이를 구분할 수 없다.
-
-**TTA (R14)** – 다시 학습하지 않고, 5-Fold 모델로 검증 예측만 TTA(좌우 뒤집기 + 0.83 · 0.67배 축소)로 다시 만들어 기준 예측과 짝지어 비교했다 ([`predict_oof.py`](scripts/predict_oof.py)).
-
-| 37종 조건부 OOF | TTA 없음 | TTA | 차이 (조합 부트스트랩 95% 구간) | fold별 | 개선 확률 |
-|:---|:---:|:---:|:---:|:---:|:---:|
-| YOLO11s | 0.956 | 0.952 | −0.004 (−0.011 ~ +0.002) | 3개↑ 2개↓ | 9% |
-| YOLO11m | 0.941 | 0.936 | −0.005 (−0.010 ~ +0.002) | 1개↑ 4개↓ | 11% |
-
-→ **채택하지 않는다.** 두 모델 모두 합친 OOF가 내려가고 개선 확률이 10% 안팎이다. 대리지표로 다시 봐도 같았다 (37종 OOF 11s −0.007, 구간 −0.015 ~ +0.002, 3개 fold 상승 · 2개 하락, 개선 확률 7% / 11m −0.012, 구간 −0.018 ~ 0.000, 5개 fold 모두 하락, 개선 확률 3%). 이 데이터는 고정된 카메라로 같은 크기의 알약을 찍어,
-축소 변환이 학습 분포에 없는 크기를 만들고 박스 좌표 평균이 IoU 0.95 정밀도를 해쳤을 수 있다 (확인하지 않은 가설).
-재현: [`compare_e0_baseline_vs_e0_baseline_tta.csv`](reports/experiments/compare_e0_baseline_vs_e0_baseline_tta.csv), [`compare_e2_yolo11m_vs_e2_yolo11m_tta.csv`](reports/experiments/compare_e2_yolo11m_vs_e2_yolo11m_tta.csv)
-
-### 결과 분석 (현재 최종 후보의 OOF)
-
-현재 최종 후보와 같은 구성(11s + 11m WBF 2:1)의 5-Fold OOF 232장을 나눠 "어디서 점수를 잃는지" 보았다 ([`error_analysis.py`](scripts/error_analysis.py) · 보고서 8장).
-
-| 발견 | 근거 |
+| 단계 | 내용 |
 |:---|:---|
-| 학습 가능 37종은 위치와 이름 모두 거의 맞힌다 | AP50-95 중앙값 0.992, 맞힌 박스의 IoU 중앙값 0.974, 위치 오류·배경 오탐 0 |
-| 학습한 약을 틀릴 때는 신뢰도가 낮다 | 분류 오류 12개의 신뢰도 중앙값 0.55, 최댓값 0.82 (0.9 이상 오답 없음) |
-| **처음 보는 약은 닮은 약 이름을 높은 신뢰도로 붙인다** | 63박스 중 61개가 다른 약 이름, **24%가 신뢰도 0.9 이상** (예: 다보타민큐정 → 트루비타정 0.98) |
-| 신뢰도만으로는 "모르는 약"을 거를 수 없다 | AUROC 0.884 (조합 단위 부트스트랩 95% 구간 0.794~0.955). 처음 보는 약 90%를 거르려면 학습한 약도 28% 거부 (같은 OOF에서 고른 탐색적 값). IoU 0.7에서는 0.842 · 55%로, WBF 설정과 작은 표본(63박스)에 민감하다 |
-| 처음 보는 약이 학습한 약의 AP도 깎는다 | 보령부스파정 AP 0.751: 자기 박스는 15개 중 11개를 맞혔지만, 처음 보는 약 5박스가 이 이름으로 예측됨 |
+| 정제 | 라벨 · 이미지 7묶음에서 형식이 틀린 박스, 약 코드와 박스가 맞지 않는 이미지, 테스트와 거의 같은 이미지(중복 확정 36장과 그 조합의 66장)를 뺐다 → **10,175장 · 박스 39,198개 · 약 116종** (대회 56종 중 54종 포함, 새 약 62종 → 118클래스) |
+| 에포크 결정 | [`a1`](configs/a1_aihub_yolo11s.yaml): AI Hub 90% + 대회 fold 0 밖으로 학습, 대회 fold 0 + AI Hub 10% 조합으로 검증 → best epoch **28** (학습 전에 정한 규칙) |
+| 제출 모델 | [`a2`](configs/a2_aihub_full_yolo11s.yaml): 대회 232장 + AI Hub 전체로 28 에포크, 검증 없이 `last.pt` |
 
-<img src="reports/figures/22_failure_cases.png" width="85%" alt="실패 사례">
+| Kaggle 제출 | 학습 데이터 | 모델 | public mAP@[0.75:0.95] |
+|:---|:---|:---|:---:|
+| 대회 데이터만 | 232장 | YOLO11s | 0.40954 |
+| 대회 데이터만 (주력) | 232장 | YOLO11s + 11m WBF | 0.41349 |
+| 시험 학습 | + AI Hub 1묶음, 15 에포크 | YOLO11s | 0.52212 |
+| **최종** | **+ AI Hub 7묶음 (10,175장)** | **YOLO11s** | **0.63017** |
 
-> 이 분석의 첫 버전에서는 "학습한 약끼리도 신뢰도 0.96~0.98로 틀린다"는 결론이 나왔다. 그 사례를 원본과 대조하자 4장 모두 **라벨이 틀린** 경우였고,
-> 라벨을 고쳐 전체를 다시 학습한 뒤 그 결론을 철회했다 ([5. 데이터 정제](#5-데이터-정제)).
+<sub>참고: 11/05 리더보드에서 public 상위 4팀은 0.611 ~ 0.634였다. private 점수와 최종 순위는 이 저장소에 기록하지 않았다. 같은 방식의 YOLO11m과 WBF 제출 파일도 만들었으나 11/06 업무일지 기준으로 제출하지 않았다.</sub>
+
+**이 비교의 한계**
+- 데이터 양, 클래스 수(56 → 118), 에포크가 함께 바뀌어 **추가 데이터 하나의 효과로 나눌 수 없다**.
+- 테스트와의 중복 검사는 128px 축소본 평균 차이 1.0 미만인 **거의 같은 이미지만** 거른다 (테스트와의 최소 거리 1% 분위수 1.27).
+  대회 학습 데이터에서 막았던 "같은 조합을 다른 각도로 찍은 사진"은 테스트의 조합 정보가 없어 확인할 수 없다. 그래서 점수 상승의 일부가 이런 겹침에서 왔을 가능성을 배제하지 못한다.
+
+### 검증 설계의 한계
+
+- **fold 점수는 조금 낙관적이다.** 각 fold는 같은 검증 fold로 조기 종료(patience 30)하고 `best.pt`를 골라 평가했다. 모든 후보가 같은 방식이라 **후보 사이의 비교**에는 쓸 수 있지만, 절댓값은 실제보다 높게 나올 수 있다. 제출 모델은 고정 에포크의 `last.pt`라 이 선택의 영향을 받지 않는다.
+- **학습 시드는 하나(42)다.** 조합 부트스트랩은 평가 표본의 흔들림만 반영하고 학습 무작위성은 재지 않았다. 그래서 0.005 미만의 차이는 결론에 쓰지 않았다.
+- **판정 근거가 실험마다 완전히 같지는 않다.** CLAHE · TTA 기각은 37종 통합 OOF, 조합 부트스트랩 구간, fold별 방향을 함께 보았다. WBF 채택은 통합 OOF와 근사 메타 검증으로 판단했다.
+- 표의 "부트스트랩 개선 비율"은 조합 단위 재표본 1,000회 중 차이가 0보다 큰 비율이다. 개선될 확률(사후확률)이 아니다.
+- 희귀 19종의 성능은 잴 수 없다. 이 중 17종은 조합 하나에만 나오고, 2종은 여러 조합에 나오지만 모두 같은 fold에 들어갔다. 어느 쪽이든 검증될 때 학습 데이터에 없다.
 
 ### 데모 앱
 
@@ -416,6 +299,8 @@ streamlit run app/demo.py
 
 사진을 올리면 알약마다 위치 · 약 이름 · 영문명 · 신뢰도 · 다른 후보를 보여 준다. 신뢰도가 0.5 미만이거나 같은 알약에 이름이 두 개 이상 붙으면 **"확인 필요"**로 표시한다.
 위의 분석처럼 처음 보는 약은 높은 신뢰도로도 틀릴 수 있어, 이 표시가 오답을 모두 거르지는 못한다는 경고를 함께 띄운다. 
+
+<sub>데모는 대회 데이터만으로 학습한 YOLO11s + 11m WBF(56종)를 쓴다. 0.630 모델은 클래스 체계가 118종으로 달라 앱의 약 정보와 맞추지 않았다. 학습한 가중치(`runs/`)는 용량 때문에 저장소에 없으므로, 앱을 실행하려면 [9. 실행 방법](#9-실행-방법)의 최종 모델 학습을 먼저 해야 한다.</sub>
 
 ▶ [시연 영상 (docs/demo/demo.mp4, 45초)](docs/demo/demo.mp4): 실행 화면을 캡처해 자막과 함께 엮었다. 음성은 없고, 테스트 이미지 선택으로 시연했으며 파일 업로드 화면은 보여 주지 않는다.
 
@@ -461,7 +346,7 @@ ai-project-01-pill-detection/
 ├── app/
 │   └── demo.py                 # 🖥️ 데모 앱 (Streamlit): 사진 → 약 이름 · 위치 · 신뢰도 · 확인 필요 표시
 ├── tests/
-│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (함수 40개 · 케이스 42개)
+│   └── test_core.py            # ✅ 핵심 함수 단위 테스트 (함수 44개 · 케이스 46개, CI에서 실행)
 ├── notebooks/                  # 📓 분석 과정 · 실행 결과 · 해석
 │   ├── 01_eda.ipynb            #   탐색적 데이터 분석 → 의사결정
 │   ├── 02_preprocess.ipynb     #   라벨 정제 · YOLO/COCO 변환 · 5-Fold (핵심 함수 코드 포함)
@@ -538,7 +423,7 @@ streamlit run app/demo.py
 사용자 폴더에 쓸 수 없는 환경(CI, 샌드박스)에서는 Ultralytics 설정 폴더를 지정한다: `YOLO_CONFIG_DIR=/tmp/ultralytics python -m pytest tests`
 실행 로그: [`reports/logs/`](reports/logs) · 단위 테스트: [`reports/logs/pytest.log`](reports/logs/pytest.log)
 
-> **재현 조건** – 설치된 pandas · Pillow가 10/30 09:34경(설치 폴더 시각) 3.0.3 · 12.3.0에서 2.3.3 · 11.3.0으로 바뀐 것으로 보이며, 원인은 확인하지 못했다. 산출물 시각 기준으로 e0_baseline fold 0(09:28 완료)과 라벨 수정 전 탐색은 이전 버전, fold 1(09:37 완료)은 교체 시점에 걸쳐 있고, 나머지 5-Fold · 최종 모델 · 제출 · 테스트는 이후 버전이다. fold별 환경을 기록하지 않아 시각으로 추정한 것이다. 두 라이브러리의 차이가 점수에 영향을 줬는지는 재실행으로 검증하지 않았다. `requirements.txt`는 최종 모델을 만든 환경의 버전이다. 새 가상환경(같은 PC, Python 3.14.6, CPU용 PyTorch)에 `requirements.txt`를 설치해 의존성 검사와 단위 테스트(확인 당시 37개, 이후 AI Hub·대회 지표 테스트를 더해 현재 42개 케이스), 라벨 감사 재현을 확인했다. 다른 PC와 GPU 학습 재현은 확인하지 않았다. 코드 검사(`python -m ruff check src scripts tests`)는 이 세 폴더만 대상이고, 노트북은 제외한다 (전체 저장소를 검사하면 노트북에서 형식 경고가 나온다).
+> **재현 조건** – `requirements.txt`는 최종 모델을 만든 환경(Python 3.14, Windows 11, RTX 3060)의 버전이다. 실험 도중 pandas · Pillow 버전이 바뀐 구간이 있었고, 그 범위와 검증하지 않은 부분은 [실험 기록의 재현 조건](docs/EXPERIMENTS.md#재현-조건-실행-환경-기록)에 적었다. 단위 테스트와 코드 검사(`ruff check src scripts tests`)는 [GitHub Actions](.github/workflows/ci.yml)에서 push마다 실행된다.
 
 </details>
 
@@ -569,7 +454,7 @@ streamlit run app/demo.py
 
 ## 라이선스
 
-코드는 [MIT License](LICENSE)를 따른다. 대회 이미지와 라벨, AI Hub 데이터는 이 저장소에 없으며 각 제공처의 이용 조건을 따른다.
+코드는 [MIT License](LICENSE)를 따른다. 대회 원본 이미지와 AI Hub 데이터는 저장소에 넣지 않았다. 다만 분석 결과를 보여 주려고 정제한 대회 라벨([`reports/annotations_clean.json`](reports/annotations_clean.json))과 대회 이미지를 그린 그림(`reports/figures/`, `reports/experiments/*/val_batch*.jpg`)은 포함했다. 이 데이터와 그림은 MIT License 대상이 아니며 대회 · AI Hub의 이용 조건을 따른다.
 
 <br>
 
