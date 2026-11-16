@@ -43,7 +43,11 @@ jobs:
           import sys, pandas as pd
           df = pd.read_csv(sys.argv[1])
           cols = [c for c in df.columns if c != "metric_definition"]
-          for _, r in df[cols].iterrows():
+          # GitHub은 단계마다 알림을 10개까지만 보여 준다: 부트스트랩 3행 → OOF 37종 2행 → fold별 37종 mAP75_95 5행 순서로 남긴다
+          boot = df[df["section"].str.startswith("bootstrap")]
+          oof = df[(df["section"] == "OOF") & df["metric"].isin(["learnable_mAP75_95", "learnable_mAP50_95"])]
+          folds = df[df["section"].str.startswith("fold") & (df["metric"] == "learnable_mAP75_95")]
+          for _, r in pd.concat([boot, oof, folds])[cols].iterrows():
               print("::notice title=wbf-bootstrap::" + " | ".join(f"{c}={r[c]}" for c in cols))
           EOF
 
